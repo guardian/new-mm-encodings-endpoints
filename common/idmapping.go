@@ -3,8 +3,11 @@ package common
 import (
 	"context"
 	"errors"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"log"
 	"strconv"
 	"time"
 )
@@ -58,47 +61,74 @@ func NewIdMappingRecord(from *map[string]types.AttributeValue) (*IdMappingRecord
 }
 
 /**
-IdMappingFromFilebase looks up a record by the filebase and returns it
+internalDbLookup is an internal method that performs an 'equals' query against an index on a dynemo table
+
+Parameters:
+ddbClient - dynamodb client instance
+tableName - string representing the table to query
+indexName - string representing the index to query
+keyFieldName - name of the hash key on the index to query
+keyValue  - the value to match against
+limit     - maximum number of rows to return
 */
-func IdMappingFromFilebase(config *Config, filebase string) (*IdMappingRecord, error) {
-	ddbClient := config.GetDynamoClient()
+func internalDbLookup(ctx context.Context, ddbClient *dynamodb.Client, tableName string, indexName string, keyFieldName string, keyValue interface{}, limit int) (*dynamodb.QueryOutput, error) {
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.
+			Key(keyFieldName).
+			Equal(expression.Value(keyValue))).
+		Build()
 
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancelFunc()
-
-	response, err := ddbClient.GetItem(ctx, &dynamodb.GetItemInput{
-		Key:       map[string]types.AttributeValue{"filebase": &types.AttributeValueMemberS{Value: filebase}},
-		TableName: &config.IdMappingTable,
-	})
 	if err != nil {
 		return nil, err
 	}
 
-	if response.Item == nil {
+	return ddbClient.Query(ctx, &dynamodb.QueryInput{
+		KeyConditionExpression:    expr.KeyCondition(),
+		ExpressionAttributeValues: expr.Values(),
+		ExpressionAttributeNames:  expr.Names(),
+		TableName:                 &tableName,
+		IndexName:                 &indexName,
+		Limit:                     aws.Int32(int32(limit)),
+	})
+}
+
+func formatResponse(response *dynamodb.QueryOutput, err error) (*IdMappingRecord, error) {
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Items == nil {
 		return nil, nil
 	}
 
-	return NewIdMappingRecord(&response.Item)
+	if len(response.Items) == 0 {
+		return nil, nil
+	} else if len(response.Items) == 1 {
+		return NewIdMappingRecord(&response.Items[0])
+	} else {
+		log.Printf("WARNING Got %d idmapping records, expected only 1. Note that there is a hard limit of 20.", len(response.Items))
+		return NewIdMappingRecord(&response.Items[0])
+	}
 }
 
-//func IdMappingFromOctid(config *Config, octid string) (*IdMappingRecord, error) {
-//	ddbClient := config.GetDynamoClient()
-//
-//	ctx, cancelFunc := context.WithTimeout(context.Background(), 3*time.Second)
-//	defer cancelFunc()
-//
-//	//map[string]types.AttributeValue{"octopus_id": &types.AttributeValueMemberN{Value: octid}},
-//	response, err := ddbClient.Query(ctx, &dynamodb.QueryInput{
-//		IndexName:	aws.String("octid_index"),
-//		TableName:                &config.IdMappingTable,
-//	})
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	if response.Item==nil {
-//		return nil, nil
-//	}
-//
-//	return NewIdMappingRecord(&response.Item)
-//}
+/**
+IdMappingFromFilebase looks up a record by the filebase and returns it
+*/
+func IdMappingFromFilebase(ctx context.Context, config *Config, filebase string) (*IdMappingRecord, error) {
+	ddbClient := config.GetDynamoClient()
+
+	response, err := internalDbLookup(ctx, ddbClient, config.IdMappingTable, "filebase", "filebase", filebase, 20)
+
+	return formatResponse(response, err)
+}
+
+/**
+IdMappingFromOctid looks up a record by the octopus id and returns it
+*/
+func IdMappingFromOctid(ctx context.Context, config *Config, octid int64) (*IdMappingRecord, error) {
+	ddbClient := config.GetDynamoClient()
+
+	response, err := internalDbLookup(ctx, ddbClient, config.IdMappingTable, "octopusid", "octopus_id", octid, 20)
+
+	return formatResponse(response, err)
+}

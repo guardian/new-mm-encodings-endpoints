@@ -1,10 +1,11 @@
 package common
 
 import (
+	"context"
 	"github.com/aws/aws-lambda-go/events"
 	"log"
-	"net/url"
 	"regexp"
+	"strconv"
 )
 
 type ContentResult struct {
@@ -28,50 +29,51 @@ func isOctIdValid(octid string) bool {
 getIDMapping tries to find an ID mapping record for the given URL, which must contain either a `file` or `octopusid`
 parameter
 */
-func getIDMapping(requestUri *url.URL, config *Config) (*IdMappingRecord, *events.APIGatewayProxyResponse) {
+func getIDMapping(ctx context.Context, queryStringParams *map[string]string, config *Config) (*IdMappingRecord, *events.APIGatewayProxyResponse) {
 	var idMapping *IdMappingRecord
 	var err error
-	fn := requestUri.Query().Get("file")
-	if fn != "" {
+
+	if fn, haveFn := (*queryStringParams)["file"]; haveFn {
 		if isFilenameValid(fn) {
-			idMapping, err = IdMappingFromFilebase(config, fn)
+			idMapping, err = IdMappingFromFilebase(ctx, config, fn)
 			if err != nil {
 				log.Print("ERROR FindContent could not get id mapping: ", err)
-				errorDetail := &ErrorDetail{
-					ErrorCode:   500,
-					ErrorString: err.Error(),
-					FileName:    fn,
-					QueryUrl:    requestUri.String(),
-				}
+				//errorDetail := &ErrorDetail{
+				//	ErrorCode:   500,
+				//	ErrorString: err.Error(),
+				//	FileName:    fn,
+				//}
 				return nil, MakeResponse(500, GenericErrorBody("Database error"))
 			}
 		} else {
-			errorDetail := &ErrorDetail{
-				ErrorCode:   400,
-				ErrorString: "Invalid filespec",
-				FileName:    fn,
-				QueryUrl:    requestUri.String(),
-			}
+			//errorDetail := &ErrorDetail{
+			//	ErrorCode:   400,
+			//	ErrorString: "Invalid filespec",
+			//	FileName:    fn,
+			//}
 			return nil, MakeResponse(400, GenericErrorBody("Invalid filespec"))
 		}
-	}
-
-	octId := requestUri.Query().Get("octopusid")
-	if fn == "" && octId != "" {
+	} else if octId, haveOctId := (*queryStringParams)["octopusid"]; haveOctId {
 		if isOctIdValid(octId) {
-
+			octIdNum, _ := strconv.ParseInt(octId, 10, 64)
+			idMapping, err = IdMappingFromOctid(ctx, config, octIdNum)
 		} else {
 			return nil, MakeResponse(400, GenericErrorBody("Invalid octid"))
 		}
-	}
-
-	if fn == "" && octId == "" {
-
+	} else {
+		return nil, MakeResponse(400, GenericErrorBody("No search"))
 	}
 
 	return idMapping, nil
 }
-func FindContent(requestUri *url.URL, config *Config) (*ContentResult, *events.APIGatewayProxyResponse) {
-	//FIXME: no memcache implementation yet, we'll see how necessary it actually is
 
+func FindContent(ctx context.Context, queryStringParams *map[string]string, config *Config) (*ContentResult, *events.APIGatewayProxyResponse) {
+	//FIXME: no memcache implementation yet, we'll see how necessary it actually is
+	idMapping, errResponse := getIDMapping(ctx, queryStringParams, config)
+	if errResponse != nil {
+		return nil, errResponse
+	}
+
+	log.Printf("DEBUGGING got id mapping result %v", idMapping)
+	return &ContentResult{}, nil
 }
