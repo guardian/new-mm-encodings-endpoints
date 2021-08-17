@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/binary"
 	"fmt"
 	"log"
 	"strconv"
@@ -11,6 +10,9 @@ import (
 
 type GeneralRecord map[string]interface{}
 
+/**
+takes an untyped byte array from mysql and converts it into a string (assuming utf-8 bytes)
+*/
 func derefTypeString(value *interface{}) string {
 	if value == nil || *value == nil {
 		return ""
@@ -18,31 +20,14 @@ func derefTypeString(value *interface{}) string {
 
 	byteValue := (*value).([]byte)
 	return string(byteValue)
-	//return (*value).(string)
 }
 
-func derefTypeInt(value *interface{}) uint {
-	if value == nil || *value == nil {
-		return 0
-	}
-	byteValue := (*value).([]byte)
+/**
+AsyncDbReader scans an entire mysql table and outputs generic (typed) records of map[string]interface{}.
+The output stream terminates with a `nil` value if successful, or a single value in the error channel if unsuccessful.
 
-	intValue, _ := binary.Uvarint(byteValue)
-	log.Printf("DEBUG derefTypeInt value is %v of length %d which became %d", byteValue, len(byteValue), intValue)
-	return uint(intValue)
-}
-
-func derefTypeInt64(value *interface{}) uint64 {
-	if value == nil || *value == nil {
-		return 0
-	}
-	byteValue := (*value).([]byte)
-
-	intValue, _ := binary.Uvarint(byteValue)
-	return intValue
-
-}
-
+Columns are converted to Go native data types before being output to the map.
+*/
 func AsyncDbReader(db *sql.DB, tableToScan string) (chan GeneralRecord, chan error) {
 	outputCh := make(chan GeneralRecord, 100)
 	errCh := make(chan error, 1)

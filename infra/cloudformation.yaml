@@ -18,6 +18,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
+        - AttributeName: uuid
+          AttributeType: S
         - AttributeName: filebase
           AttributeType: S
         - AttributeName: octopus_id
@@ -26,7 +28,7 @@ Resources:
           AttributeType: S
       BillingMode: PAY_PER_REQUEST
       KeySchema:
-        - AttributeName: filebase
+        - AttributeName: uuid
           KeyType: HASH
         - AttributeName: lastupdate
           KeyType: RANGE
@@ -34,6 +36,14 @@ Resources:
         - IndexName: octopusid
           KeySchema:
             - AttributeName: octopus_id
+              KeyType: HASH
+            - AttributeName: lastupdate
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: filebase
+          KeySchema:
+            - AttributeName: filebase
               KeyType: HASH
             - AttributeName: lastupdate
               KeyType: RANGE

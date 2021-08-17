@@ -10,4 +10,5 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.6.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.7.1 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 )
