@@ -29,7 +29,7 @@ func isOctIdValid(octid string) bool {
 getIDMapping tries to find an ID mapping record for the given URL, which must contain either a `file` or `octopusid`
 parameter
 */
-func getIDMapping(ctx context.Context, queryStringParams *map[string]string, config *Config) (*IdMappingRecord, *events.APIGatewayProxyResponse) {
+func getIDMapping(ctx context.Context, queryStringParams *map[string]string, config Config) (*IdMappingRecord, *events.APIGatewayProxyResponse) {
 	var idMapping *IdMappingRecord
 	var err error
 
@@ -67,7 +67,7 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, con
 	return idMapping, nil
 }
 
-func FindContent(ctx context.Context, queryStringParams *map[string]string, config *Config) (*ContentResult, *events.APIGatewayProxyResponse) {
+func FindContent(ctx context.Context, queryStringParams *map[string]string, config Config) (*ContentResult, *events.APIGatewayProxyResponse) {
 	//FIXME: no memcache implementation yet, we'll see how necessary it actually is
 	idMapping, errResponse := getIDMapping(ctx, queryStringParams, config)
 	if errResponse != nil {

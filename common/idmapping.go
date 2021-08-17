@@ -114,10 +114,10 @@ func formatResponse(response *dynamodb.QueryOutput, err error) (*IdMappingRecord
 /**
 IdMappingFromFilebase looks up a record by the filebase and returns it
 */
-func IdMappingFromFilebase(ctx context.Context, config *Config, filebase string) (*IdMappingRecord, error) {
+func IdMappingFromFilebase(ctx context.Context, config Config, filebase string) (*IdMappingRecord, error) {
 	ddbClient := config.GetDynamoClient()
 
-	response, err := internalDbLookup(ctx, ddbClient, config.IdMappingTable, "filebase", "filebase", filebase, 20)
+	response, err := internalDbLookup(ctx, ddbClient, config.IdMappingTable(), "filebase", "filebase", filebase, 20)
 
 	return formatResponse(response, err)
 }
@@ -125,10 +125,10 @@ func IdMappingFromFilebase(ctx context.Context, config *Config, filebase string)
 /**
 IdMappingFromOctid looks up a record by the octopus id and returns it
 */
-func IdMappingFromOctid(ctx context.Context, config *Config, octid int64) (*IdMappingRecord, error) {
+func IdMappingFromOctid(ctx context.Context, config Config, octid int64) (*IdMappingRecord, error) {
 	ddbClient := config.GetDynamoClient()
 
-	response, err := internalDbLookup(ctx, ddbClient, config.IdMappingTable, "octopusid", "octopus_id", octid, 20)
+	response, err := internalDbLookup(ctx, ddbClient, config.IdMappingTable(), "octopusid", "octopus_id", octid, 20)
 
 	return formatResponse(response, err)
 }

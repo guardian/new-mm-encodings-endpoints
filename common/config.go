@@ -11,26 +11,35 @@ import (
 	"strconv"
 )
 
-type Config struct {
+type ConfigImpl struct {
 	DyanmoContentTable            string
-	IdMappingTable                string
+	idMappingTable                string
 	MemcacheHost                  string
 	MemcachePort                  int16
 	MemcacheExpirySeconds         int16
 	MemcacheNotfoundExpirySeconds int16
 	awsClientsConfig              aws.Config
+	ddbClient                     *dynamodb.Client
+}
+
+/**
+Config is exposed as an interface to allow for mocking
+*/
+type Config interface {
+	GetDynamoClient() *dynamodb.Client
+	IdMappingTable() string
 }
 
 /**
 NewConfig initiates a new Config object with values set from default environment variables
 */
-func NewConfig() (*Config, error) {
+func NewConfig() (Config, error) {
 	awscfg, awsErr := awsconfig.LoadDefaultConfig(context.Background())
 	if awsErr != nil {
 		return nil, awsErr
 	}
 
-	basicConfig := &Config{
+	basicConfig := &ConfigImpl{
 		os.Getenv("CONTENT_TABLE_NAME"),
 		os.Getenv("ID_MAPPING_TABLE"),
 		os.Getenv("MEMCACHE_HOST"),
@@ -38,6 +47,7 @@ func NewConfig() (*Config, error) {
 		240,
 		10,
 		awscfg,
+		dynamodb.NewFromConfig(awscfg),
 	}
 
 	if os.Getenv("MEMCACHE_PORT") != "" {
@@ -52,7 +62,7 @@ func NewConfig() (*Config, error) {
 	if basicConfig.DyanmoContentTable == "" {
 		return nil, errors.New("CONTENT_TABLE_NAME is not set")
 	}
-	if basicConfig.IdMappingTable == "" {
+	if basicConfig.idMappingTable == "" {
 		return nil, errors.New("ID_MAPPING_TABLE not set")
 	}
 	if basicConfig.MemcacheHost == "" {
@@ -61,6 +71,10 @@ func NewConfig() (*Config, error) {
 	return basicConfig, nil
 }
 
-func (c *Config) GetDynamoClient() *dynamodb.Client {
-	return dynamodb.NewFromConfig(c.awsClientsConfig)
+func (c *ConfigImpl) GetDynamoClient() *dynamodb.Client {
+	return c.ddbClient
+}
+
+func (c *ConfigImpl) IdMappingTable() string {
+	return c.idMappingTable
 }
