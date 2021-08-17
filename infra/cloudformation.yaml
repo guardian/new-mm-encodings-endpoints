@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: New style encodings endpoint
+Parameters:
+  App:
+    Type: String
+    Description: Application name
+  Stack:
+    Type: String
+    Description: Stack name
+  Stage:
+    Type: String
+    Description: Deployment stage
+    AllowedValues:
+      - CODE
+      - PROD
+Resources:
+  IdMappingTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: filebase
+          AttributeType: S
+        - AttributeName: octopus_id
+          AttributeType: N
+        - AttributeName: lastupdate
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: filebase
+          KeyType: HASH
+        - AttributeName: lastupdate
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: octopusid
+          KeySchema:
+            - AttributeName: octopus_id
+              KeyType: HASH
+            - AttributeName: lastupdate
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: App
+          Value: !Ref App
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Stage
+          Value: !Ref Stage
+  EncodingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: encodingid
+          AttributeType: N
+#        - AttributeName: lastupdate
+#          AttributeType: S
+        - AttributeName: fcs_id
+          AttributeType: S
+        - AttributeName: octopus_id
+          AttributeType: N
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: fcs_id
+          KeyType: HASH
+        - AttributeName: encodingid
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: octopusid
+          KeySchema:
+            - AttributeName: octopus_id
+              KeyType: HASH
+            - AttributeName: encodingid
+              KeyType: RANGE
+
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: App
+          Value: !Ref App
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Stage
+          Value: !Ref Stage
+  MimeEquivalentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: mime_equivalent
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: mime_equivalent
+          KeyType: HASH
+      Tags:
+        - Key: App
+          Value: !Ref App
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Stage
+          Value: !Ref Stage
+  PosterFramesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: encodingid
+          AttributeType: N
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: encodingid
+          KeyType: HASH
+      Tags:
+        - Key: App
+          Value: !Ref App
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Stage
+          Value: !Ref Stage
