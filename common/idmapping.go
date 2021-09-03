@@ -42,8 +42,9 @@ func NewIdMappingRecord(from *map[string]types.AttributeValue) (*IdMappingRecord
 		if lastUpdateString, lastUpdateIsString := lastupdate.(*types.AttributeValueMemberS); lastUpdateIsString {
 			parsedValue, err := time.Parse(time.RFC3339, lastUpdateString.Value)
 			if err != nil {
-				result.lastupdate = parsedValue
+				return nil, err
 			}
+			result.lastupdate = parsedValue
 		}
 	}
 	if octId, haveOctid := (*from)["octopus_id"]; haveOctid {
@@ -71,7 +72,7 @@ keyFieldName - name of the hash key on the index to query
 keyValue  - the value to match against
 limit     - maximum number of rows to return
 */
-func internalDbLookup(ctx context.Context, ddbClient *dynamodb.Client, tableName string, indexName string, keyFieldName string, keyValue interface{}, limit int) (*dynamodb.QueryOutput, error) {
+func internalDbLookup(ctx context.Context, ddbClient dynamodb.QueryAPIClient, tableName string, indexName string, keyFieldName string, keyValue interface{}, limit int) (*dynamodb.QueryOutput, error) {
 	expr, err := expression.NewBuilder().
 		WithKeyCondition(expression.
 			Key(keyFieldName).
@@ -92,6 +93,12 @@ func internalDbLookup(ctx context.Context, ddbClient *dynamodb.Client, tableName
 	})
 }
 
+/**
+formatResponse takes the QueryOutput from dynamo and marshals the results into the first IdMappingRecord, if present.
+Emits a warning if there is more than one record in the response.
+If not, then returns nil.
+On error, returns the error
+*/
 func formatResponse(response *dynamodb.QueryOutput, err error) (*IdMappingRecord, error) {
 	if err != nil {
 		return nil, err
