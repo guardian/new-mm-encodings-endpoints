@@ -135,7 +135,6 @@ Resources:
   IAMAPIServiceRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: LambdaAPIServiceRole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -153,7 +152,7 @@ Resources:
             Statement:
               - Action: lambda:InvokeFunction
                 Resource:
-                  - !GetAtt ReferenceAPI
+                  - !GetAtt ReferenceAPI.Arn
                 Effect: Allow
 
   ##common access policy used by the endpoints
@@ -171,9 +170,13 @@ Resources:
               - dynamodb:BatchGetItem
             Resource:
               - !GetAtt IdMappingTable.Arn
+              - !Sub ${IdMappingTable.Arn}/index/*
               - !GetAtt EncodingsTable.Arn
+              - !Sub ${EncodingsTable.Arn}/index/*
               - !GetAtt MimeEquivalentsTable.Arn
+              - !Sub ${MimeEquivalentsTable.Arn}/index/*
               - !GetAtt PosterFramesTable.Arn
+              - !Sub ${PosterFramesTable.Arn}/index/*
 
   ##`referenceapi` endpoint setup
   ReferenceAPIRole: #this describes the access permissions that the lambda function has when executing
@@ -186,9 +189,9 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
-        ManagedPolicyArns:
-          - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
-          - !Ref EndpointsAccessPolicy
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+        - !Ref EndpointsAccessPolicy
 
   ReferenceAPI: #this describes the lambda function used to generate the API response
     Type: AWS::Lambda::Function
@@ -241,7 +244,7 @@ Resources:
         PassthroughBehavior: WHEN_NO_TEMPLATES
         TimeoutInMillis: 5000
         IntegrationHttpMethod: POST
-        Credentials: !GetAtt IAMAPIServiceRole
+        Credentials: !GetAtt IAMAPIServiceRole.Arn
         ContentHandling: CONVERT_TO_TEXT
         Type: AWS_PROXY
         Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ReferenceAPI}/invocations"
@@ -293,7 +296,7 @@ Resources:
   RestAPIDeployment:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
-      - RestAPI
+      - ReferenceAPIEndpoint
     Properties:
       RestApiId: !ImportValue
         'Fn::Sub': ${APIGatewayStack}-RestAPI

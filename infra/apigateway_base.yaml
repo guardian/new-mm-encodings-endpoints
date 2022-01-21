@@ -70,3 +70,8 @@ Outputs:
     Value: !GetAtt RestAPI.RootResourceId
     Export:
       Name: !Sub ${AWS::StackName}-RestAPIRoot
+  GWAccount:
+    Description: API Gateway Account
+    Value: !Ref ApiGatewayAccount
+    Export:
+      Name: !Sub ${AWS::StackName}-GWAccount
