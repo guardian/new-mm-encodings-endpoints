@@ -11,5 +11,7 @@ referenceapi.zip: referenceapi
 upload: referenceapi.zip
 	aws s3 cp referenceapi.zip s3://${DEPLOYMENTBUCKET}/${APP}/${STACK}/${STAGE}/referenceapi.zip
 
+deploy: upload
+
 clean:
 	rm -f referenceapi referenceapi.zip
