@@ -13,4 +13,4 @@ done
 
 VERS=$(jq .Version < published-version.json | sed s/\"//g) #extract the version number with JQ. It comes as a string so we must strip out the quotes.
 echo "We have just (re-)deployed version $VERS"
-aws lambda update-alias --function-name "$1" --name "$2" --function-version ${VERS}
+aws lambda update-alias --function-name "$1" --name "$2" --function-version "${VERS}"

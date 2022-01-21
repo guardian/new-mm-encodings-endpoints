@@ -9,13 +9,10 @@ referenceapi.zip: referenceapi
 	zip referenceapi.zip referenceapi
 
 upload: referenceapi.zip
-	. ../ci-scripts/set_upload_version.sh
-	aws s3 cp referenceapi.zip s3://${DEPLOYMENTBUCKET}/${APP}/${STACK}/${UPLOADVERSION}/referenceapi.zip
+	../ci-scripts/upload-and-deploy.sh "referenceapi.zip"
 
-deploy: upload
-	. ../ci-scripts/set_upload_version.sh
-	aws lambda update-function-code --function-name ${APP}-References --s3-bucket ${DEPLOYMENTBUCKET} --s3-key ${APP}/${STACK}/${UPLOADVERSION}/referenceapi.zip
-	../ci-scripts/lambda-version.sh "${APP}-References" "${STAGE}"
+deploy: referenceapi.zip
+	../ci-scripts/upload-and-deploy.sh "referenceapi.zip" "${APP}-References"
 
 clean:
 	rm -f referenceapi referenceapi.zip

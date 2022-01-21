@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: New style encodings endpoint
+Description: New style encodings endpoints
 Parameters:
   App:
     Type: String
@@ -7,15 +7,13 @@ Parameters:
   Stack:
     Type: String
     Description: Stack name
-  Stage:
-    Type: String
-    Description: Deployment stage
-    AllowedValues:
-      - CODE
-      - PROD
   APIGatewayStack:
     Type: String
     Description: Name of a deployed `apigateway_base` instance
+  InitialVersionId:
+    Type: String
+    Description: The version ID of the first version to deploy
+    Default: main
   LambdaBucket:
     Type: String
     Description: Name of the bucket containing lambda function code
@@ -60,8 +58,6 @@ Resources:
           Value: !Ref App
         - Key: Stack
           Value: !Ref Stack
-        - Key: Stage
-          Value: !Ref Stage
   EncodingsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -94,8 +90,6 @@ Resources:
           Value: !Ref App
         - Key: Stack
           Value: !Ref Stack
-        - Key: Stage
-          Value: !Ref Stage
   MimeEquivalentsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -111,8 +105,6 @@ Resources:
           Value: !Ref App
         - Key: Stack
           Value: !Ref Stack
-        - Key: Stage
-          Value: !Ref Stage
   PosterFramesTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -128,8 +120,6 @@ Resources:
           Value: !Ref App
         - Key: Stack
           Value: !Ref Stack
-        - Key: Stage
-          Value: !Ref Stage
 
   ## Access policy to allow API Gateway to call the Lambda service
   IAMAPIServiceRole:
@@ -196,11 +186,11 @@ Resources:
   ReferenceAPI: #this describes the lambda function used to generate the API response
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub ${App}-References-${Stage}
+      FunctionName: !Sub ${App}-References
       Description: Returns a text URL giving the location of the content
       Code:
         S3Bucket: !Ref LambdaBucket
-        S3Key: !Sub "${App}/${Stack}/${Stage}/referenceapi.zip"
+        S3Key: !Sub "${App}/${Stack}/${InitialVersionId}/referenceapi.zip"
       Handler: referenceapi
       Runtime: go1.x
       MemorySize: 128
