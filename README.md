@@ -17,6 +17,8 @@ Other bits:
 You will need:
 - A recent version of Go, at least 1.11 but preferably 1.16 or 1.17
 - GNU make - this is normally available as standard on Mac or Linux and can be installed (usually via Cygwin) on Windows
+- The `jq` utility. Install this with your package manager or Homebrew
+- The AWS commandline tools, with working access credentials.
 
 To make sure everything is working, go to the root of this repository in your terminal and run:
 ```bash

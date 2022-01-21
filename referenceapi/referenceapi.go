@@ -24,7 +24,7 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 		return errResponse, nil
 	}
 
-	return common.MakeResponse(200, map[string]string{"status": "ok", "detail": "hello PROD"}), nil
+	return common.MakeResponse(200, map[string]string{"status": "ok", "detail": "hello PROD again"}), nil
 }
 
 func main() {
