@@ -60,7 +60,7 @@ func NewConfig() (Config, error) {
 	}
 
 	if basicConfig.DyanmoContentTable == "" {
-		return nil, errors.New("CONTENT_TABLE_NAME is not set")
+		return nil, errors.New("ENCODINGS_TABLE is not set")
 	}
 	if basicConfig.idMappingTable == "" {
 		return nil, errors.New("ID_MAPPING_TABLE not set")

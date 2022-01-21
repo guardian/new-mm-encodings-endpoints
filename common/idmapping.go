@@ -118,7 +118,7 @@ func formatResponse(response *dynamodb.QueryOutput, err error) (*IdMappingRecord
 	}
 }
 
-/**
+/*
 IdMappingFromFilebase looks up a record by the filebase and returns it
 */
 func IdMappingFromFilebase(ctx context.Context, config Config, filebase string) (*IdMappingRecord, error) {
@@ -129,7 +129,7 @@ func IdMappingFromFilebase(ctx context.Context, config Config, filebase string) 
 	return formatResponse(response, err)
 }
 
-/**
+/*
 IdMappingFromOctid looks up a record by the octopus id and returns it
 */
 func IdMappingFromOctid(ctx context.Context, config Config, octid int64) (*IdMappingRecord, error) {

@@ -5,8 +5,8 @@ import (
 	"regexp"
 )
 
-/**
-HasDodgyM3U8 format fixes a problem with iOS devices supplying malformed format strings to the endpoint.
+/*
+HasDodgyM3U8Format fixes a problem with iOS devices supplying malformed format strings to the endpoint.
 There is a bug in iOS clients whereby rather than using the _actual_ redirected m3u8 URL to locate submanifests
 it simply takes the orignal referer and replaces everything after the last /.  So, if the client came here through
 us the url becomes endpoint.yadayada.com/interactivevideos/video.php?format=video/{filename}.m3u8.

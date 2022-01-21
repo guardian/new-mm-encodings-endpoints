@@ -21,6 +21,15 @@ func GenericErrorBody(msg string) map[string]string {
 	}
 }
 
+/*
+MakeResponse generates a pointer to an APIGatewayProxyResponse suitable for returning back to API Gatweay
+Arguments:
+- responseCode (integer) - HTTP response code to use
+- contentBody            - an untyped parameter that is marshalled into json as the response body. If this fails, then
+an error is logged out and an APIGatewayProxyResponse corresponding to 500 (Internal Server Error) is returned
+Returns:
+- a pointer to an APIGatewayProxyResponse
+ */
 func MakeResponse(responseCode int, contentBody interface{}) *events.APIGatewayProxyResponse {
 	jsonBytes, marshalErr := json.Marshal(contentBody)
 	if marshalErr != nil {
