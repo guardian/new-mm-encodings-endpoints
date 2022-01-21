@@ -152,7 +152,7 @@ Resources:
             Statement:
               - Action: lambda:InvokeFunction
                 Resource:
-                  - !GetAtt ReferenceAPI.Arn
+                  - !Sub ${ReferenceAPI.Arn}:*
                 Effect: Allow
 
   ##common access policy used by the endpoints
@@ -212,6 +212,22 @@ Resources:
           POSTER_FRAMES_TABLE: !Ref PosterFramesTable
       Role: !GetAtt ReferenceAPIRole.Arn
       Timeout: 5
+  ReferenceAPICodeAlias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      Description: Staging deployment for the media-reference API
+      FunctionName: !Ref ReferenceAPI
+      FunctionVersion: "$LATEST"  #this is overriden in the deploy processes
+      Name: CODE
+
+  ReferenceAPIProdAlias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      Description: Staging deployment for the media-reference API
+      FunctionName: !Ref ReferenceAPI
+      FunctionVersion: "$LATEST"  #this is overriden in the deploy processes
+      Name: PROD
+
   ReferenceAPIPermissions:  #this describes the permissions that allow the lambda function to be called
     Type: AWS::Lambda::Permission
     DependsOn:
@@ -247,14 +263,14 @@ Resources:
         Credentials: !GetAtt IAMAPIServiceRole.Arn
         ContentHandling: CONVERT_TO_TEXT
         Type: AWS_PROXY
-        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ReferenceAPI}/invocations"
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ReferenceAPI}:${!stageVariables.stage}/invocations"
       RestApiId: !ImportValue
         'Fn::Sub': ${APIGatewayStack}-RestAPI
       ResourceId: !Ref ReferenceAPIResource
       OperationName: operation
 
   ##API Gateway CODE environment setup
-  RestAPIStage:
+  RestAPIStageCode:
     Type: AWS::ApiGateway::Stage
     Properties:
       DeploymentId: !Ref RestAPIDeployment
@@ -265,14 +281,38 @@ Resources:
           ResourcePath: "/*"
       RestApiId: !ImportValue
         'Fn::Sub': ${APIGatewayStack}-RestAPI
-      StageName: !Ref Stage
+      StageName: CODE
+      Variables:
+        stage: CODE
       Tags:
         - Key: App
           Value: !Ref App
         - Key: Stack
           Value: !Ref Stack
         - Key: Stage
-          Value: !Ref Stage
+          Value: CODE
+
+  RestAPIStageProd:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref RestAPIDeployment
+      MethodSettings:
+        - DataTraceEnabled: true
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          ResourcePath: "/*"
+      RestApiId: !ImportValue
+        'Fn::Sub': ${APIGatewayStack}-RestAPI
+      StageName: PROD
+      Variables:
+        stage: PROD
+      Tags:
+        - Key: App
+          Value: !Ref App
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Stage
+          Value: PROD
 
   ##DNS mappings to "real-world" addresses
 #  ApiGatewayDomainMapping:
