@@ -36,13 +36,13 @@ dependencies from previous steps are not there
 declare -x DEPLOYMENTBUCKET=your-deployment-bucket
 declare -x APP=encodings-endpoint
 declare -x STACK=multimedia
-declare -x STAGE=CODE
+declare -x UPLOADVERSION=main
 ```
-4. Run `make upload` from the root of this repository. This will compile and upload the lambda function code
-5. In the AWS Web console, go to Cloudformation and Create Stack
-6. Use the file `infra/apigateway_base.yaml`.  When deploying, make a note of the name you choose; you'll need it later.
+5. Run `make upload` from the root of this repository. This will compile and upload the lambda function code
+6. In the AWS Web console, go to Cloudformation and Create Stack
+7. Use the file `infra/apigateway_base.yaml`.  When deploying, make a note of the name you choose; you'll need it later.
 Make sure you use the same `App` and `Stack` tags that you used earlier.  This will set up the basic, shared API Gateway setup.
-7. With `apigateway_base.yaml` set up, then deploy `infra/cloudformation.yaml`.  Use the stack name that you chose for
+8. With `apigateway_base.yaml` set up, then deploy `infra/endpoints.yaml`.  Use the stack name that you chose for
 `apigateway_base` as the `APIGatewayStack` parameter and make sure that the deployment bucket, app, stack and stage
 parameters are EXACTLY the ones you used for upload (these values are used to compute the path to the code bundle)
 
@@ -54,6 +54,7 @@ retrieve a "direct access" url.
 Once that has been done successfully, you can deploy updates of the lambda functions directly with the `make` utility,
 provided you have the environment variables set:
 
+NOTE - about versioning and deployment - TODO
 ```bash
 declare -x DEPLOYMENTBUCKET=your-deployment-bucket
 declare -x APP=encodings-endpoint
