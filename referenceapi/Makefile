@@ -12,6 +12,7 @@ upload: referenceapi.zip
 	aws s3 cp referenceapi.zip s3://${DEPLOYMENTBUCKET}/${APP}/${STACK}/${STAGE}/referenceapi.zip
 
 deploy: upload
+	aws lambda update-function-code --function-name ${APP}-References-${STAGE} --s3-bucket ${DEPLOYMENTBUCKET} --s3-key ${APP}/${STACK}/${STAGE}/referenceapi.zip --publish
 
 clean:
 	rm -f referenceapi referenceapi.zip

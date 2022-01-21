@@ -14,6 +14,8 @@ import (
 type ConfigImpl struct {
 	DyanmoContentTable            string
 	idMappingTable                string
+	MimeEquivalentsTable          string
+	PosterFramesTable             string
 	MemcacheHost                  string
 	MemcachePort                  int16
 	MemcacheExpirySeconds         int16
@@ -22,7 +24,7 @@ type ConfigImpl struct {
 	ddbClient                     *dynamodb.Client
 }
 
-/**
+/*
 Config is exposed as an interface to allow for mocking
 */
 type Config interface {
@@ -30,7 +32,7 @@ type Config interface {
 	IdMappingTable() string
 }
 
-/**
+/*
 NewConfig initiates a new Config object with values set from default environment variables
 */
 func NewConfig() (Config, error) {
@@ -40,8 +42,10 @@ func NewConfig() (Config, error) {
 	}
 
 	basicConfig := &ConfigImpl{
-		os.Getenv("CONTENT_TABLE_NAME"),
+		os.Getenv("ENCODINGS_TABLE"),
 		os.Getenv("ID_MAPPING_TABLE"),
+		os.Getenv("MIME_EQUIVALENTS_TABLE"),
+		os.Getenv("POSTER_FRAMES_TABLE"),
 		os.Getenv("MEMCACHE_HOST"),
 		11211,
 		240,
@@ -65,9 +69,7 @@ func NewConfig() (Config, error) {
 	if basicConfig.idMappingTable == "" {
 		return nil, errors.New("ID_MAPPING_TABLE not set")
 	}
-	if basicConfig.MemcacheHost == "" {
-		return nil, errors.New("MEMCACHE_HOST is not set")
-	}
+
 	return basicConfig, nil
 }
 
