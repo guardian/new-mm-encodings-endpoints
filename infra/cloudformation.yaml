@@ -131,10 +131,128 @@ Resources:
         - Key: Stage
           Value: !Ref Stage
 
+  ## Access policy to allow API Gateway to call the Lambda service
+  IAMAPIServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaAPIServiceRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+      Policies:
+        - PolicyName: API_Service_Role_Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt ReferenceAPI
+                Effect: Allow
+
+  ##common access policy used by the endpoints
+  EndpointsAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:Query
+              - dynamodb:BatchGetItem
+            Resource:
+              - !GetAtt IdMappingTable.Arn
+              - !GetAtt EncodingsTable.Arn
+              - !GetAtt MimeEquivalentsTable.Arn
+              - !GetAtt PosterFramesTable.Arn
+
+  ##`referenceapi` endpoint setup
+  ReferenceAPIRole: #this describes the access permissions that the lambda function has when executing
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+          - !Ref EndpointsAccessPolicy
+
+  ReferenceAPI: #this describes the lambda function used to generate the API response
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${App}-References-${Stage}
+      Description: Returns a text URL giving the location of the content
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub "${App}/${Stack}/${Stage}/referenceapi.zip"
+      Handler: referenceapi
+      Runtime: go1.x
+      MemorySize: 128
+      Environment:
+        Variables:
+          ID_MAPPING_TABLE: !Ref IdMappingTable
+          ENCODINGS_TABLE: !Ref EncodingsTable
+          MIME_EQUIVALENTS_TABLE: !Ref MimeEquivalentsTable
+          POSTER_FRAMES_TABLE: !Ref PosterFramesTable
+      Role: !GetAtt ReferenceAPIRole.Arn
+      Timeout: 5
+  ReferenceAPIPermissions:  #this describes the permissions that allow the lambda function to be called
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - ReferenceAPI
+    Properties:
+      Action: lambda:Invoke
+      FunctionName: !Ref ReferenceAPI
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:/*/GET/reference"
+  ReferenceAPIResource:   #this describes the HTTP path to be associated with this function
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !ImportValue
+        'Fn::Sub': ${APIGatewayStack}-RestAPI
+      PathPart: reference
+      ParentId: !ImportValue
+        'Fn::Sub': ${APIGatewayStack}-RestAPIRoot
+  ReferenceAPIEndpoint: #this creates the entry in the Rest API
+    Type: AWS::ApiGateway::Method
+    DependsOn:
+      - ReferenceAPIResource
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: NONE
+      HttpMethod: GET
+      Integration:
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses: []
+        PassthroughBehavior: WHEN_NO_TEMPLATES
+        TimeoutInMillis: 5000
+        IntegrationHttpMethod: POST
+        Credentials: !GetAtt IAMAPIServiceRole
+        ContentHandling: CONVERT_TO_TEXT
+        Type: AWS_PROXY
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ReferenceAPI}/invocations"
+      RestApiId: !ImportValue
+        'Fn::Sub': ${APIGatewayStack}-RestAPI
+      ResourceId: !Ref ReferenceAPIResource
+      OperationName: operation
+
+  ##API Gateway CODE environment setup
   RestAPIStage:
     Type: AWS::ApiGateway::Stage
-    DependsOn:
-      - ApiGatewayAccount
     Properties:
       DeploymentId: !Ref RestAPIDeployment
       MethodSettings:

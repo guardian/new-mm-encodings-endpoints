@@ -64,4 +64,9 @@ Outputs:
     Description: Base API Gateway REST
     Value: !Ref RestAPI
     Export:
-      Name: !Sub $(AWS::StackName}-RestAPI
+      Name: !Sub ${AWS::StackName}-RestAPI
+  RestAPIRoot:
+    Description: Root resource of the REST API
+    Value: !GetAtt RestAPI.RootResourceId
+    Export:
+      Name: !Sub ${AWS::StackName}-RestAPIRoot
