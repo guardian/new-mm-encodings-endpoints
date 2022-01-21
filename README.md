@@ -63,6 +63,14 @@ retrieve a "direct access" url.
 
 ## Development process
 
+TL;DR :-
+
+1. Create a Deployment Stage with your name on it in the API Gateway web console
+2. Ensure that the stage variable called `stage` is set to the name of the Deployment stage
+3. Set `STAGE` to this value in an environment variable in your terminal and run `make clean && make deploy`
+4. Use the API Gateway web console to find the test URL to call
+5. Deploy to CODE and PROD via CI
+
 ### Versioning and staging
 The details of how staging works in this project are somewhat different to how most other GNM projects work, so please
 spend a few moments to read this and get used to them.

@@ -4,6 +4,16 @@
 # $1 - the zipfile to upload
 # $2 - the function name to associate it with
 
+if [ ! -x "`which jq`" ]; then
+  echo This script requires the \"jq\" utility. Please install it and re-run.
+  exit 1
+fi
+
+if [ ! -x "`which aws`" ]; then
+  echo This script requires the \"aws\" commandline utility. Please install it and re-run.
+  exit 1
+fi
+
 if [ "${DEPLOYMENTBUCKET}" == "" ]; then
   echo You must set DEPLOYMENTBUCKET before uploading
   exit 1
