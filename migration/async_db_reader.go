@@ -22,7 +22,7 @@ func derefTypeString(value *interface{}) string {
 	return string(byteValue)
 }
 
-/**
+/*
 AsyncDbReader scans an entire mysql table and outputs generic (typed) records of map[string]interface{}.
 The output stream terminates with a `nil` value if successful, or a single value in the error channel if unsuccessful.
 

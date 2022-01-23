@@ -9,7 +9,10 @@ referenceapi.zip: referenceapi
 	zip referenceapi.zip referenceapi
 
 upload: referenceapi.zip
-	aws s3 cp referenceapi.zip s3://${DEPLOYMENTBUCKET}/${APP}/${STACK}/${STAGE}/referenceapi.zip
+	../ci-scripts/upload-and-deploy.sh "referenceapi.zip"
+
+deploy: referenceapi.zip
+	../ci-scripts/upload-and-deploy.sh "referenceapi.zip" "${APP}-References"
 
 clean:
 	rm -f referenceapi referenceapi.zip

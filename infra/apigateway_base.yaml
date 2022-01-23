@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Basic API Gateway setup that is common to CODE and PROD stages
+Parameters:
+  App:
+    Type: String
+    Description: Application name
+  Stack:
+    Type: String
+    Description: Stack name
+Resources:
+  RestAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: API to handle requests for media lookups
+      Name: New-style multimedia encodings endpoints
+      Tags:
+        - Key: App
+          Value: !Ref App
+        - Key: Stack
+          Value: !Ref Stack
+  ApiGatewayModel:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      ContentType: 'application/json'
+      RestApiId: !Ref RestAPI
+      Schema: {}
+
+  ApiGatewayCloudWatchLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: API_GW_Logs_Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                  - logs:GetLogEvents
+                  - logs:FilterLogEvents
+                Resource: "*"
+
+
+  ApiGatewayAccount:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !Sub ${ApiGatewayCloudWatchLogsRole.Arn}
+
+Outputs:
+  RestAPIId:
+    Description: Base API Gateway REST
+    Value: !Ref RestAPI
+    Export:
+      Name: !Sub ${AWS::StackName}-RestAPI
+  RestAPIRoot:
+    Description: Root resource of the REST API
+    Value: !GetAtt RestAPI.RootResourceId
+    Export:
+      Name: !Sub ${AWS::StackName}-RestAPIRoot
+  GWAccount:
+    Description: API Gateway Account
+    Value: !Ref ApiGatewayAccount
+    Export:
+      Name: !Sub ${AWS::StackName}-GWAccount
