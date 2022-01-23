@@ -43,8 +43,11 @@ is that `PROD` indicates the active version and `CODE` the staging/testing versi
 declare -x DEPLOYMENTBUCKET=your-deployment-bucket
 declare -x APP=encodings-endpoint #or whatever you decide
 declare -x STACK=multimedia       #or whatever you decide
-declare -x UPLOADVERSION=main     #this is the default value that the cloudformation looks at for initial deployment
+declare -x UPLOADVERSION=inital     #this is the default value that the cloudformation looks at for initial deployment
 ```
+4. `UPLOADVERSION` is a value used to disambiguate different revisions of code when uploaded to S3. The normal process
+uses either a CI build number of a UUID for this purpose, but the initial upload looks for the value "initial". If the
+value you put does not correspond to what the Cloudformation is looking for, the Cloudformation deploy will fail.
 5. Run `make upload` from the root of this repository. This will compile and upload the lambda function code.
 6. Now run `unset UPLOADVERSION`. This will ensure that subsequent zip file revisions are kept seperate by auto-generating
 a UUID for the upload path.
@@ -61,6 +64,23 @@ retrieve a "direct access" url.
 
 ## Where do I find the logs?
 
+Quick answer: In Cloudformation Logs.
+
+- In the AWS Console, go to the Cloudformation app
+- In the menu on the left, select "Logs"
+- This will show you a (very large) list of all the log streams available in the account.  To find execution log for a
+given lambda function, start typing the lambda function's name in the "Search" box.
+- Once you see the logs corresponding to the lambda function's name, click the one corresponding to the time period you
+are interested in
+- This will then open the log to browse and view.  Update latency is around a few seconds, usually
+- Log retention settings are configured in Cloudformation as well
+- Cloudwatch logs _also_ holds logs for API Gateway itself.  However, they are indexed under the _id_ (a randomised string
+of 5 or 6 characters) rather than the api _name_.  
+- To find the API Gateway logs, you'll need the id of the Rest API.  You can find this by consulting the Outputs section
+of the deployed `apigateway_base.yaml` Cloudformation, or by finding it in the "Execute URL" for the API in the API Gateway
+console.
+
+
 ## Development process
 
 TL;DR :-
@@ -68,8 +88,8 @@ TL;DR :-
 1. Create a Deployment Stage with your name on it in the API Gateway web console
 2. Ensure that the stage variable called `stage` is set to the name of the Deployment stage
 3. Set `STAGE` to this value in an environment variable in your terminal and run `make clean && make deploy`
-4. Use the API Gateway web console to find the test URL to call
-5. Deploy to CODE and PROD via CI
+4. Use the API Gateway web console to find the test URL to call. Make sure it works.
+5. Deploy to CODE and PROD via CI, using a Canary for PROD.
 
 ### Versioning and staging
 The details of how staging works in this project are somewhat different to how most other GNM projects work, so please

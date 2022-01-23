@@ -12,8 +12,8 @@ Parameters:
     Description: Name of a deployed `apigateway_base` instance
   InitialVersionId:
     Type: String
-    Description: The version ID of the first version to deploy
-    Default: main
+    Description: The version ID of the first version to deploy. Set this to the same value you used for "UPLOADVERSION" on your initial upload.
+    Default: initial
   LambdaBucket:
     Type: String
     Description: Name of the bucket containing lambda function code
