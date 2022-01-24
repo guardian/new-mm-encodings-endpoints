@@ -69,17 +69,23 @@ done
 VERS=$(jq .Version < published-version.json | sed s/\"//g) #extract the version number with JQ. It comes as a string so we must strip out the quotes.
 echo "We have just (re-)deployed version $VERS"
 
-if [ "${GITHUB_REF_NAME}" != "" ]; then
-  echo Running on Github from branch ${GITHUB_REF_NAME}
-  aws lambda create-alias --function-name "$2" --name "${GITHUB_REF_NAME}" --function-version "${VERS}"
+if [ "${GITHUB_HEAD_REF}" != "" ] || [ "${GITHUB_REF}" != "" ]; then
+  echo Running on Github with ref ${GITHUB_REF}
+  BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}  #https://stackoverflow.com/a/68674820/2840056
+  echo Creating alias for branch ${BRANCH}
+  aws lambda create-alias --function-name "$2" --name "${BRANCH}" --function-version "${VERS}"
   if [ "$?" != "0" ]; then
-    echo Could not create function alias for version ${VERS} to ${GITHUB_REF_NAME}
-    exit 1
+    #if the 'create' operation fails, then try to update instead
+    aws lambda update-alias --function-name "$2" --name "${BRANCH}" --function-version "${VERS}"
+    if [ "$?" != "0" ]; then
+      echo Could not create or updatefunction alias for version ${VERS} to ${BRANCH}
+      exit 1
+    fi
   fi
-fi
-
-if [ "${STAGE}" == "" ]; then
-  echo Not linking to any deployment as STAGE is not set
 else
-  aws lambda update-alias --function-name "$2" --name "${STAGE}" --function-version "${VERS}"
+  if [ "${STAGE}" == "" ]; then
+    echo Not linking to any deployment as STAGE is not set
+  else
+    aws lambda update-alias --function-name "$2" --name "${STAGE}" --function-version "${VERS}"
+  fi
 fi
