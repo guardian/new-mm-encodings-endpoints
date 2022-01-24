@@ -125,7 +125,7 @@ func AsyncDbReader(db *sql.DB, tableToScan string) (chan GeneralRecord, chan err
 					if stringValue != "" {
 						floatValue, err := strconv.ParseFloat(stringValue, 64)
 						if err != nil {
-							log.Printf("WARNING invalid floag value %s: %s", floatValue, err)
+							log.Printf("WARNING invalid float value %f: %s", floatValue, err)
 						} else {
 							rec[col] = floatValue
 						}
