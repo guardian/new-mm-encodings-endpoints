@@ -15,4 +15,4 @@ deploy: referenceapi.zip
 	../ci-scripts/upload-and-deploy.sh "referenceapi.zip" "${APP}-References"
 
 clean:
-	rm -f referenceapi referenceapi.zip
+	rm -f referenceapi referenceapi.zip published-version.json

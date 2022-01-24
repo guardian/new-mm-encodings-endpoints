@@ -8,9 +8,6 @@ import (
 	"strconv"
 )
 
-type ContentResult struct {
-}
-
 /**
 isFilenameValid validates the contents of the filename and returns true if it is ok.
 If not, false is returned
