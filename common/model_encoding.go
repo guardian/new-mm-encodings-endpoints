@@ -62,6 +62,18 @@ func extractContentResultField(rec *RawDynamoRecord, fieldName string, t reflect
 				log.Printf("WARNING Field %s was not castable to a number", fieldName)
 				return nil
 			}
+		case reflect.Int64:
+			if v, isRightType := dynamoValue.(*types.AttributeValueMemberN); isRightType {
+				intval, err := strconv.ParseInt(v.Value, 10, 64)
+				if err != nil {
+					log.Printf("WARNING Field %s value %s could not be converted to int64: %s", fieldName, v.Value, err)
+					return nil
+				}
+				return intval
+			} else {
+				log.Printf("WARNING Field %s was not castable to a number", fieldName)
+				return nil
+			}
 		case reflect.Float32:
 			if v, isRightType := dynamoValue.(*types.AttributeValueMemberN); isRightType {
 				intval, err := strconv.ParseFloat(v.Value, 32)
