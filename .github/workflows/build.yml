@@ -31,5 +31,9 @@ jobs:
       - name: Test
         run: make test
 
-      - name: Build
-        run: make
+      - name: Build and create version
+        env:
+          DEPLOYMENTBUCKET: ${{ secrets.DEPLOY_BUCKET }}
+          APP: ${{ secrets.APP_TAG }}
+          STACK: ${{ secrets.STACK_TAG }}
+        run: make clean && make deploy
