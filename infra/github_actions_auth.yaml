@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Basic API Gateway setup that is common to CODE and PROD stages
+Parameters:
+  OIDCProviderArn:
+    Description: ARN of the pre-created Github Actions OIDC provider (see https://github.com/aws-actions/configure-aws-credentials)
+    Type: String
+  GitHubOrg:
+    Description: Organisation of the owning repository on Github
+    Type: String
+  RepositoryName:
+    Description: Repository name on Github to grant access to via Github Actions
+    Type: String
+  DeploymentBucketPath:
+    Description: Deployment bucket and path to be granted access to on S3, in the form bucketname/path
+    Type: String
+  FunctionsBaseName:
+    Description: Common prefix of lambda functions which GHA will be given permission to update
+    Type: String
+Resources:
+  EncodingsEndpointBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRoleWithWebIdentity
+            Principal:
+              Federated:
+                - !Ref OIDCProviderArn
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${RepositoryName}:*
+      Policies:
+        - PolicyName: DeliverToS3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub arn:aws:s3:::${DeploymentBucketPath}
+        - PolicyName: DeployToLambda
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:CreateAlias
+                  - lambda:PublishVersion
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateAlias
+                Resource: !Sub arn:aws:lambda:${AWS::AccountId}:function:${FunctionsBaseName}
