@@ -69,6 +69,15 @@ done
 VERS=$(jq .Version < published-version.json | sed s/\"//g) #extract the version number with JQ. It comes as a string so we must strip out the quotes.
 echo "We have just (re-)deployed version $VERS"
 
+if [ "${GITHUB_REF_NAME}" != "" ]; then
+  echo Running on Github from branch ${GITHUB_REF_NAME}
+  aws lambda create-alias --function-name "$2" --name "${GITHUB_REF_NAME}" --function-version "${VERS}"
+  if [ "$?" != "0" ]; then
+    echo Could not create function alias for version ${VERS} to ${GITHUB_REF_NAME}
+    exit 1
+  fi
+fi
+
 if [ "${STAGE}" == "" ]; then
   echo Not linking to any deployment as STAGE is not set
 else
