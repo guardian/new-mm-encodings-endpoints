@@ -39,7 +39,7 @@ aws s3 cp "$1" "s3://${DEPLOYMENTBUCKET}/${APP}/${STACK}/${UPLOADVERSION}/$1"
 
 if [ "$?" != "0" ]; then
   echo Upload failed!
-  exit $?
+  exit 1
 fi
 
 #if there is no function name specified then exit now
@@ -47,7 +47,12 @@ if [ "$2" == "" ]; then
   exit 0
 fi
 
-aws lambda update-function-code --function-name "$2" --s3-bucket "${DEPLOYMENTBUCKET}" --s3-key "${APP}/${STACK}/${UPLOADVERSION}/$1"
+aws lambda update-function-code --function-name "$2" --s3-bucket "${DEPLOYMENTBUCKET}" --s3-key "${APP}/${STACK}/${UPLOADVERSION}/$1" > /dev/null
+if [ "$?" != "0" ]; then
+  echo Could not post update to lambda!
+  exit 1
+fi
+
 PUBLISHED=0
 CTR=0
 while [[ "$PUBLISHED" == "0" ]]; do

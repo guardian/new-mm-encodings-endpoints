@@ -38,6 +38,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:PutObject
+                  - s3:GetObject
                 Resource: !Sub arn:aws:s3:::${DeploymentBucketPath}
         - PolicyName: DeployToLambda
           PolicyDocument:
@@ -49,4 +50,4 @@ Resources:
                   - lambda:PublishVersion
                   - lambda:UpdateFunctionCode
                   - lambda:UpdateAlias
-                Resource: !Sub arn:aws:lambda:${AWS::AccountId}:function:${FunctionsBaseName}
+                Resource: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionsBaseName}
