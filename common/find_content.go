@@ -81,8 +81,20 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, con
 	return idMapping, nil
 }
 
-func FindContent(ctx context.Context, queryStringParams *map[string]string, config Config) (*ContentResult, *events.APIGatewayProxyResponse) {
-	ops := NewDynamoDbOps(config)
+/*
+FindContent is the main entry point to the common logic for all the endpoints. It takes in the query parameters and tries to
+find the best match for them, returning this as a pointer to ContentResult.
+
+Arguments:
+- ctx - context that can be used to cancel the operation, passed in from lambda functions
+- queryStringParams - pointer to a string-string map representing the query parameters from the URL
+- ops - a DynamoDbOps object that abstracts the actual Dynamo operations for mocking
+- config - a Config object that encapsulates the runtime configuration
+Returns:
+- a pointer to ContentResult on success
+- a pointer to APIGatewayProxyResponse on error. This can be passed back directly to the runtime.
+*/
+func FindContent(ctx context.Context, queryStringParams *map[string]string, ops DynamoDbOps, config Config) (*ContentResult, *events.APIGatewayProxyResponse) {
 	//FIXME: no memcache implementation yet, we'll see how necessary it actually is
 	idMapping, errResponse := getIDMapping(ctx, queryStringParams, config)
 	if errResponse != nil {
