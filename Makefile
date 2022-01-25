@@ -1,4 +1,4 @@
-.PHONY: referenceapi upload clean deploy
+.PHONY: referenceapi upload clean deploy migration
 
 all: referenceapi migration
 
