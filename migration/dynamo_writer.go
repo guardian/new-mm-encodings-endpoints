@@ -10,6 +10,7 @@ import (
 	"log"
 	"reflect"
 	"time"
+	"strings"
 )
 
 type RawDynamoRecord map[string]types.AttributeValue
@@ -57,7 +58,7 @@ func newWriteQueue() []*RawDynamoRecord {
 marshalGeneralRecord marshals a `GeneralRecord` structure from the sql reader into a DynamoDB record,
 setting the types appropriately
 */
-func marshalGeneralRecord(in *GeneralRecord, addUUID bool) (*RawDynamoRecord, error) {
+func marshalGeneralRecord(in *GeneralRecord, addUUID bool, nullableKeyFields string) (*RawDynamoRecord, error) {
 	output := make(RawDynamoRecord, 0)
 	for k, v := range *in {
 		var val types.AttributeValue
@@ -73,7 +74,11 @@ func marshalGeneralRecord(in *GeneralRecord, addUUID bool) (*RawDynamoRecord, er
 		case float64:
 			val = &types.AttributeValueMemberN{Value: fmt.Sprintf("%f", typeValue)}
 		case string:
-			val = &types.AttributeValueMemberS{Value: typeValue}
+			if ((v == "") && (strings.Contains(nullableKeyFields, k))) {
+				val = &types.AttributeValueMemberS{Value: "ABSENT"}
+			} else {
+				val = &types.AttributeValueMemberS{Value: typeValue}
+			}
 		case time.Time:
 			val = &types.AttributeValueMemberS{Value: typeValue.Format(time.RFC3339)}
 		default:
@@ -88,7 +93,7 @@ func marshalGeneralRecord(in *GeneralRecord, addUUID bool) (*RawDynamoRecord, er
 	return &output, nil
 }
 
-func AsyncDynamoWriter(inputCh chan GeneralRecord, ddbClient *dynamodb.Client, tableNamePtr *string, addUUID bool) chan error {
+func AsyncDynamoWriter(inputCh chan GeneralRecord, ddbClient *dynamodb.Client, tableNamePtr *string, addUUID bool, nullableKeyFields string) chan error {
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -101,7 +106,7 @@ func AsyncDynamoWriter(inputCh chan GeneralRecord, ddbClient *dynamodb.Client, t
 				return
 			}
 
-			ddbRec, err := marshalGeneralRecord(&rec, addUUID)
+			ddbRec, err := marshalGeneralRecord(&rec, addUUID, nullableKeyFields)
 			if err != nil {
 				log.Printf("ERROR Could not marshal %v: %s", rec, err)
 				errCh <- err

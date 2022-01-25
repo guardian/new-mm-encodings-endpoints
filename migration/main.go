@@ -14,9 +14,9 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func processTable(db *sql.DB, tableName string, ddbClient *dynamodb.Client, outputTableName *string, addUuid bool) error {
+func processTable(db *sql.DB, tableName string, ddbClient *dynamodb.Client, outputTableName *string, addUuid bool, nullableKeyFields string) error {
 	recordsCh, errCh := AsyncDbReader(db, tableName)
-	writeErrCh := AsyncDynamoWriter(recordsCh, ddbClient, outputTableName, addUuid)
+	writeErrCh := AsyncDynamoWriter(recordsCh, ddbClient, outputTableName, addUuid, nullableKeyFields)
 
 	for {
 		select {
@@ -47,6 +47,7 @@ func main() {
 	sourceTable := flag.String("source", "idmapping", "table to read from the SQL database")
 	destTable := flag.String("dest", "", "dynamodb table to write to")
 	addUUID := flag.Bool("add-uuid", false, "add a uniquely generated id if this is specified")
+	nullableKeyFields := flag.String("nullable-fields", "", "A comma separated list of fields that can be null")
 	flag.Parse()
 
 	uuid.EnableRandPool()
@@ -71,7 +72,7 @@ func main() {
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
 
-	err = processTable(db, *sourceTable, ddbClient, destTable, *addUUID)
+	err = processTable(db, *sourceTable, ddbClient, destTable, *addUUID, *nullableKeyFields)
 	if err != nil {
 		log.Fatal("Error exit")
 	} else {
