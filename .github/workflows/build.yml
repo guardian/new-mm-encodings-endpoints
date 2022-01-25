@@ -12,6 +12,8 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    env:
+      APP: encodings-endpoint
 
     steps:
       - uses: actions/checkout@v2
@@ -34,6 +36,5 @@ jobs:
       - name: Build and create version
         env:
           DEPLOYMENTBUCKET: ${{ secrets.DEPLOY_BUCKET }}
-          APP: ${{ secrets.APP_TAG }}
           STACK: ${{ secrets.STACK_TAG }}
         run: make clean && make deploy

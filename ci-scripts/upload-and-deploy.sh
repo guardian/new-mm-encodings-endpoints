@@ -76,11 +76,13 @@ if [ "${GITHUB_HEAD_REF}" != "" ] || [ "${GITHUB_REF}" != "" ]; then
   aws lambda create-alias --function-name "$2" --name "${BRANCH}" --function-version "${VERS}" > /dev/null
   if [ "$?" != "0" ]; then
     #if the 'create' operation fails, then try to update instead
-    aws lambda update-alias --function-name "$2" --name "${BRANCH}" --function-version "${VERS}"
+    echo Create alias failed, trying update instead...
+    aws lambda update-alias --function-name "$2" --name "${BRANCH}" --function-version "${VERS}" > /dev/null
     if [ "$?" != "0" ]; then
-      echo Could not create or updatefunction alias for version ${VERS} to ${BRANCH}
+      echo Could not create or updatefunction alias for version ${VERS} to ${BRANCH} > /dev/null
       exit 1
     fi
+    echo Update successful
   fi
 else
   if [ "${STAGE}" == "" ]; then
@@ -89,3 +91,5 @@ else
     aws lambda update-alias --function-name "$2" --name "${STAGE}" --function-version "${VERS}"
   fi
 fi
+
+echo Build completed
