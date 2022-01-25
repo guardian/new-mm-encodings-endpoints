@@ -21,10 +21,11 @@ type IdMappingRecord struct {
 }
 
 func NewIdMappingRecord(from *map[string]types.AttributeValue) (*IdMappingRecord, error) {
+	log.Printf("DEBUG NewIdMappingRecord from %v", from)
 	var result IdMappingRecord
-	if contentId, haveContentId := (*from)["contentId"]; haveContentId {
-		if contentIdString, contentIdIsString := contentId.(*types.AttributeValueMemberS); contentIdIsString {
-			result.contentId = contentIdString.Value
+	if contentId, haveContentId := (*from)["contentid"]; haveContentId {
+		if contentIdNumber, contentIdIsNum := contentId.(*types.AttributeValueMemberN); contentIdIsNum {
+			result.contentId = contentIdNumber.Value
 		}
 	}
 	if filebase, haveFileBase := (*from)["filebase"]; haveFileBase {
@@ -40,6 +41,7 @@ func NewIdMappingRecord(from *map[string]types.AttributeValue) (*IdMappingRecord
 	}
 	if lastupdate, haveLastUpdate := (*from)["lastupdate"]; haveLastUpdate {
 		if lastUpdateString, lastUpdateIsString := lastupdate.(*types.AttributeValueMemberS); lastUpdateIsString {
+			log.Printf("DEBUG raw timestamp is %s", lastUpdateString.Value)
 			parsedValue, err := time.Parse(time.RFC3339, lastUpdateString.Value)
 			if err != nil {
 				return nil, err
@@ -56,6 +58,8 @@ func NewIdMappingRecord(from *map[string]types.AttributeValue) (*IdMappingRecord
 
 	nullTime := time.Time{}
 	if result.contentId == "" || result.filebase == "" || result.lastupdate == nullTime {
+		log.Printf("ERROR ID mapping record is inaccurate, does not contain required fields")
+		log.Printf("ERROR Partial result was %s %s %s", result.contentId, result.filebase, result.lastupdate)
 		return nil, errors.New("ID mapping record is inaccurate, does not contain required fields")
 	}
 	return &result, nil
@@ -83,6 +87,7 @@ func internalDbLookup(ctx context.Context, ddbClient dynamodb.QueryAPIClient, ta
 		return nil, err
 	}
 
+	log.Printf("DEBUG internalDbLookup querying index %s on table %s with keyfield %s and value %v", indexName, tableName, keyFieldName, keyValue)
 	return ddbClient.Query(ctx, &dynamodb.QueryInput{
 		KeyConditionExpression:    expr.KeyCondition(),
 		ExpressionAttributeValues: expr.Values(),
@@ -104,6 +109,7 @@ func formatResponse(response *dynamodb.QueryOutput, err error) (*IdMappingRecord
 		return nil, err
 	}
 
+	log.Printf("DEBUG formatResponse got %v with items %v", response, response.Items)
 	if response.Items == nil {
 		return nil, nil
 	}
@@ -118,7 +124,7 @@ func formatResponse(response *dynamodb.QueryOutput, err error) (*IdMappingRecord
 	}
 }
 
-/**
+/*
 IdMappingFromFilebase looks up a record by the filebase and returns it
 */
 func IdMappingFromFilebase(ctx context.Context, config Config, filebase string) (*IdMappingRecord, error) {
@@ -129,7 +135,7 @@ func IdMappingFromFilebase(ctx context.Context, config Config, filebase string) 
 	return formatResponse(response, err)
 }
 
-/**
+/*
 IdMappingFromOctid looks up a record by the octopus id and returns it
 */
 func IdMappingFromOctid(ctx context.Context, config Config, octid int64) (*IdMappingRecord, error) {

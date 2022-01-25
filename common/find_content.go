@@ -22,6 +22,33 @@ func isOctIdValid(octid string) bool {
 	return matcher.MatchString(octid)
 }
 
+/*
+getFCSId returns the FCS ID for a given contentId.
+
+The FCS id uniquely identifies the version (as opposed to octopus_id uniquely identifies the title which can have
+multiple versions.
+Versions can have subtly different bitrates AND arrive at different times, so just searching versions with a sort order
+can return old results no matter what.
+So, the first step is to find the most recent FCS ID and then search with that
+Some entries may not have FCS IDs, and if uncaught this leads to all such entries being treated as the same title.
+So, we iterate across them all and get the first non-empty one. If no ids are found then we must fall back to the
+old behaviour (step 3)
+*/
+func getFCSId(ctx context.Context, ops DynamoDbOps, contentId string) (*string, error) {
+	results, err := ops.QueryFCSIdForContentId(ctx, contentId)
+
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range *results {
+		if r != "" {
+			finalResult := r
+			return &finalResult, nil
+		}
+	}
+	return nil, nil
+}
+
 /**
 getIDMapping tries to find an ID mapping record for the given URL, which must contain either a `file` or `octopusid`
 parameter
@@ -35,11 +62,6 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, con
 			idMapping, err = IdMappingFromFilebase(ctx, config, fn)
 			if err != nil {
 				log.Print("ERROR FindContent could not get id mapping: ", err)
-				//errorDetail := &ErrorDetail{
-				//	ErrorCode:   500,
-				//	ErrorString: err.Error(),
-				//	FileName:    fn,
-				//}
 				return nil, MakeResponse(500, GenericErrorBody("Database error"))
 			}
 		} else {
@@ -54,6 +76,7 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, con
 		if isOctIdValid(octId) {
 			octIdNum, _ := strconv.ParseInt(octId, 10, 64)
 			idMapping, err = IdMappingFromOctid(ctx, config, octIdNum)
+			log.Printf("DEBUG got id mapping record %v", idMapping)
 		} else {
 			return nil, MakeResponse(400, GenericErrorBody("Invalid octid"))
 		}
@@ -65,6 +88,7 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, con
 }
 
 func FindContent(ctx context.Context, queryStringParams *map[string]string, config Config) (*ContentResult, *events.APIGatewayProxyResponse) {
+	ops := NewDynamoDbOps(config)
 	//FIXME: no memcache implementation yet, we'll see how necessary it actually is
 	idMapping, errResponse := getIDMapping(ctx, queryStringParams, config)
 	if errResponse != nil {
@@ -72,5 +96,14 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, conf
 	}
 
 	log.Printf("DEBUGGING got id mapping result %v", idMapping)
-	return &ContentResult{}, nil
+	if idMapping != nil { //we got a result from idmapping
+		fcsId, err := getFCSId(ctx, ops, idMapping.contentId)
+		if err != nil {
+			return nil, MakeResponse(500, GenericErrorBody("Database error"))
+		}
+		log.Printf("DEBUGGING got FCS ID %v", fcsId)
+		return &ContentResult{}, nil
+	} else { //fall back to direct query
+		return nil, MakeResponse(500, GenericErrorBody("Not implemented yet"))
+	}
 }
