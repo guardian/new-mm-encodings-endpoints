@@ -14,7 +14,14 @@ migration:
 test:
 	go test ./...
 
+coverage:
+	rm -f cover.out
+	go test -coverprofile cover.out ./...
+	go tool cover -html=cover.out
+	rm -f cover.out
+
 clean:
+	rm -f cover.out
 	make -C migration/ clean
 	make -C referenceapi/ clean
 

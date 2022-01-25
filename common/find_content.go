@@ -41,6 +41,10 @@ func getFCSId(ctx context.Context, ops DynamoDbOps, contentId int32) (*string, e
 	if err != nil {
 		return nil, err
 	}
+	if results == nil {
+		return nil, nil
+	}
+
 	for _, r := range *results {
 		if r != "" {
 			finalResult := r
