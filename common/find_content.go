@@ -6,6 +6,7 @@ import (
 	"log"
 	"regexp"
 	"strconv"
+	"time"
 )
 
 /**
@@ -103,26 +104,42 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 
 	var contentToFilter []*Encoding
 	log.Printf("DEBUGGING got id mapping result %v", idMapping)
-	if idMapping != nil { //we got a result from idmapping
-		fcsId, err := getFCSId(ctx, ops, idMapping.contentId)
+	if idMapping == nil { //nothing in idmapping => does not exist
+		return nil, MakeResponse(404, GenericErrorBody("Content not found"))
+	}
+	var err error
+
+	fcsId, err := getFCSId(ctx, ops, idMapping.contentId)
+	if err != nil {
+		return nil, MakeResponse(500, GenericErrorBody("Database error"))
+	}
+
+	if fcsId != nil {
+		log.Printf("DEBUGGING got FCS ID %s", *fcsId)
+		contentToFilter, err = ops.QueryEncodingsForFCSId(ctx, *fcsId)
 		if err != nil {
+			log.Printf("ERROR Could not query encodings: %s", err)
 			return nil, MakeResponse(500, GenericErrorBody("Database error"))
 		}
-		if fcsId != nil {
-			log.Printf("DEBUGGING got FCS ID %s", *fcsId)
-			contentToFilter, err = ops.QueryEncodingsForFCSId(ctx, *fcsId)
-			if err != nil {
-				log.Printf("ERROR Could not query encodings: %s", err)
-				return nil, MakeResponse(500, GenericErrorBody("Database error"))
-			}
-			for _, c := range contentToFilter {
-				log.Printf("INFO Got record %v", *c)
-			}
-		} else {
-			log.Printf("DEBUGGING did not find an FCS ID")
+	}
+
+	if contentToFilter == nil { //we didn't get any results yet
+		log.Print("INFO No content from primary search, falling back to secondary")
+		_, haveAllowOld := (*queryStringParams)["allow_old"]
+		var maybeSince *time.Time
+		if !haveAllowOld {
+			maybeSince = &idMapping.lastupdate
+			log.Printf("INFO allow_old not set, only looking for results since %s", maybeSince.Format(time.RFC3339))
 		}
-	} else { //fall back to direct query
-		return nil, MakeResponse(500, GenericErrorBody("Not implemented yet"))
+		contentToFilter, err = ops.QueryEncodingsForContentId(ctx, idMapping.contentId, maybeSince)
+		if err != nil {
+			log.Printf("ERROR Could not query encodings: %s", err)
+			return nil, MakeResponse(500, GenericErrorBody("Database error"))
+		}
+	}
+
+	for _, c := range contentToFilter {
+		log.Printf("INFO Got record %v", *c)
 	}
 
 	return &ContentResult{}, nil

@@ -9,6 +9,7 @@ import (
 	"log"
 	"reflect"
 	"sort"
+	"time"
 )
 
 type DynamoDbOpsImpl struct {
@@ -22,6 +23,7 @@ DynamoDbOps abstracts the actual DynamoDb operations so that we can mock them in
 type DynamoDbOps interface {
 	QueryFCSIdForContentId(ctx context.Context, contentId int32) (*[]string, error)
 	QueryEncodingsForFCSId(ctx context.Context, fcsid string) ([]*Encoding, error)
+	QueryEncodingsForContentId(ctx context.Context, contentid int32, maybeSince *time.Time) ([]*Encoding, error)
 }
 
 /*
@@ -110,6 +112,26 @@ func (ops *DynamoDbOpsImpl) QueryFCSIdForContentId(ctx context.Context, contentI
 }
 
 /*
+Internal function that takes a QueryOutput and builds a list of Encodings to return then sorts them by VBitrate
+*/
+func _marshalResponseToSortedEncodings(response *dynamodb.QueryOutput) ([]*Encoding, error) {
+	var err error
+	encodings := make([]*Encoding, len(response.Items))
+	for i, rawData := range response.Items {
+		encodings[i], err = EncodingFromDynamo((*RawDynamoRecord)(&rawData))
+		if err != nil {
+			log.Printf("ERROR QueryEncodingsForFCSId could not marshal item %d (%v): %s", i, rawData, err)
+			return nil, err
+		}
+	}
+
+	sort.Slice(encodings, func(i int, j int) bool {
+		return encodings[i].VBitrate > encodings[j].VBitrate
+	})
+	return encodings, nil
+}
+
+/*
 QueryEncodingsForFCSId searches the Encodings table for videos corresponding to the given fcsid
 and returns a slice of pointers to the marshalled Encoding objects
 */
@@ -136,17 +158,59 @@ func (ops *DynamoDbOpsImpl) QueryEncodingsForFCSId(ctx context.Context, fcsid st
 		return nil, err
 	}
 
-	encodings := make([]*Encoding, len(response.Items))
-	for i, rawData := range response.Items {
-		encodings[i], err = EncodingFromDynamo((*RawDynamoRecord)(&rawData))
-		if err != nil {
-			log.Printf("ERROR QueryEncodingsForFCSId could not marshal item %d (%v): %s", i, rawData, err)
-			return nil, err
-		}
+	return _marshalResponseToSortedEncodings(response)
+}
+
+/*
+QueryEncodingsForContentId looks up records from the Encodings table corresponding to the given contentid.
+This is the "fallback mode" query for when no title version id can be found
+
+Arguments:
+- ctx - context that can be used to cancel this operation
+- contentid - the content ID to query for
+- maybeSince - nullable pointer to a time. If this is non-NULL then only records with 'lastupdate' equal to or since this time will be retrieved
+Returns:
+- a slice of pointers to matching Encoding records on success
+- an error on failure
+*/
+func (ops *DynamoDbOpsImpl) QueryEncodingsForContentId(ctx context.Context, contentid int32, maybeSince *time.Time) ([]*Encoding, error) {
+	//equivalent SQL is select * from encodings left join mime_equivalents on (real_name=encodings.format) where contentid=$contentid order by vbitrate desc,lastupdate desc
+	keyTerms := expression.Key("contentid").Equal(expression.Value(contentid))
+	if maybeSince != nil {
+		keyTerms = keyTerms.And(expression.Key("lastupdate").GreaterThanEqual(expression.Value(maybeSince.Format(time.RFC3339))))
 	}
 
-	sort.Slice(encodings, func(i int, j int) bool {
-		return encodings[i].VBitrate > encodings[j].VBitrate
-	})
-	return encodings, nil
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(keyTerms).
+		Build()
+
+	if err != nil {
+		log.Printf("ERROR QueryEncodingsForContentId could not build the query expression: %s", err)
+		return nil, err
+	}
+	rq := &dynamodb.QueryInput{
+		TableName:                 ops.config.EncodingsTablePtr(),
+		ExclusiveStartKey:         nil,
+		IndexName:                 aws.String("contentid"),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		KeyConditionExpression:    expr.KeyCondition(),
+	}
+
+	response, err := ops.client.Query(ctx, rq)
+	if err != nil {
+		log.Printf("ERROR QueryEncodingsForContentId could not execute the query: %s", err)
+		return nil, err
+	}
+
+	encodings, err := _marshalResponseToSortedEncodings(response)
+	if err == nil {
+		//apply a most-recent-first search
+		sort.Slice(encodings, func(i int, j int) bool {
+			return encodings[i].LastUpdate.Unix() > encodings[j].LastUpdate.Unix()
+		})
+		return encodings, nil
+	} else {
+		return nil, err
+	}
 }
