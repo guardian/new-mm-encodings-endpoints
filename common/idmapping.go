@@ -13,7 +13,7 @@ import (
 )
 
 type IdMappingRecord struct {
-	contentId  string
+	contentId  int32
 	filebase   string //base index
 	project    *string
 	lastupdate time.Time //range key for all indices
@@ -25,7 +25,11 @@ func NewIdMappingRecord(from *map[string]types.AttributeValue) (*IdMappingRecord
 	var result IdMappingRecord
 	if contentId, haveContentId := (*from)["contentid"]; haveContentId {
 		if contentIdNumber, contentIdIsNum := contentId.(*types.AttributeValueMemberN); contentIdIsNum {
-			result.contentId = contentIdNumber.Value
+			intValue, err := strconv.ParseInt(contentIdNumber.Value, 10, 32)
+			if err != nil {
+				return nil, err
+			}
+			result.contentId = int32(intValue)
 		}
 	}
 	if filebase, haveFileBase := (*from)["filebase"]; haveFileBase {
@@ -41,7 +45,6 @@ func NewIdMappingRecord(from *map[string]types.AttributeValue) (*IdMappingRecord
 	}
 	if lastupdate, haveLastUpdate := (*from)["lastupdate"]; haveLastUpdate {
 		if lastUpdateString, lastUpdateIsString := lastupdate.(*types.AttributeValueMemberS); lastUpdateIsString {
-			log.Printf("DEBUG raw timestamp is %s", lastUpdateString.Value)
 			parsedValue, err := time.Parse(time.RFC3339, lastUpdateString.Value)
 			if err != nil {
 				return nil, err
@@ -57,9 +60,9 @@ func NewIdMappingRecord(from *map[string]types.AttributeValue) (*IdMappingRecord
 	}
 
 	nullTime := time.Time{}
-	if result.contentId == "" || result.filebase == "" || result.lastupdate == nullTime {
+	if result.contentId == 0 || result.filebase == "" || result.lastupdate == nullTime {
 		log.Printf("ERROR ID mapping record is inaccurate, does not contain required fields")
-		log.Printf("ERROR Partial result was %s %s %s", result.contentId, result.filebase, result.lastupdate)
+		log.Printf("ERROR Partial result was %d %s %s", result.contentId, result.filebase, result.lastupdate)
 		return nil, errors.New("ID mapping record is inaccurate, does not contain required fields")
 	}
 	return &result, nil
@@ -109,7 +112,6 @@ func formatResponse(response *dynamodb.QueryOutput, err error) (*IdMappingRecord
 		return nil, err
 	}
 
-	log.Printf("DEBUG formatResponse got %v with items %v", response, response.Items)
 	if response.Items == nil {
 		return nil, nil
 	}

@@ -20,7 +20,7 @@ type DynamoDbOpsImpl struct {
 DynamoDbOps abstracts the actual DynamoDb operations so that we can mock them in testing
 */
 type DynamoDbOps interface {
-	QueryFCSIdForContentId(ctx context.Context, contentId string) (*[]string, error)
+	QueryFCSIdForContentId(ctx context.Context, contentId int32) (*[]string, error)
 }
 
 /*
@@ -31,8 +31,8 @@ func NewDynamoDbOps(config Config) DynamoDbOps {
 }
 
 type SortableString struct {
-	StringValue *string
-	LastUpdate  *string
+	StringValue string
+	LastUpdate  string
 }
 
 /*
@@ -49,7 +49,7 @@ select fcs_id from encodings left join mime_equivalents on (real_name=encodings.
 ```
 from line 273 of the original code
 */
-func (ops *DynamoDbOpsImpl) QueryFCSIdForContentId(ctx context.Context, contentId string) (*[]string, error) {
+func (ops *DynamoDbOpsImpl) QueryFCSIdForContentId(ctx context.Context, contentId int32) (*[]string, error) {
 	expr, err := expression.NewBuilder().
 		WithKeyCondition(expression.Key("contentid").Equal(expression.Value(contentId))).
 		Build()
@@ -80,8 +80,8 @@ func (ops *DynamoDbOpsImpl) QueryFCSIdForContentId(ctx context.Context, contentI
 
 		for _, result := range results.Items {
 			output = append(output, SortableString{
-				StringValue: extractDynamoField((*RawDynamoRecord)(&result), "fcs_id", reflect.String, false).(*string),
-				LastUpdate:  extractDynamoField((*RawDynamoRecord)(&result), "lastupdate", reflect.String, false).(*string),
+				StringValue: extractDynamoField((*RawDynamoRecord)(&result), "fcs_id", reflect.String, true).(string),
+				LastUpdate:  extractDynamoField((*RawDynamoRecord)(&result), "lastupdate", reflect.String, true).(string),
 			})
 		}
 
@@ -93,19 +93,16 @@ func (ops *DynamoDbOpsImpl) QueryFCSIdForContentId(ctx context.Context, contentI
 	}
 
 	//rely on lexographical properties of the iso timestamp to do the date sort
+	//this does a most-recent-first sort
 	sort.Slice(output, func(i int, j int) bool {
-		if output[i].LastUpdate == nil || output[j].LastUpdate == nil {
-			return false
-		} else {
-			return *output[i].LastUpdate < *output[j].LastUpdate
-		}
+		return output[j].LastUpdate < output[i].LastUpdate
 	})
 
 	finalOutputs := make([]string, len(output))
 	for i, v := range output {
-		log.Printf("DEBUG FCS query for contentid %s got %v @ %v", contentId, v.StringValue, v.LastUpdate)
-		if v.StringValue != nil {
-			finalOutputs[i] = *v.StringValue
+		log.Printf("DEBUG FCS query for contentid %d got %v @ %v", contentId, v.StringValue, v.LastUpdate)
+		if v.StringValue != "" {
+			finalOutputs[i] = v.StringValue
 		}
 	}
 	return &finalOutputs, nil

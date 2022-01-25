@@ -34,7 +34,7 @@ Some entries may not have FCS IDs, and if uncaught this leads to all such entrie
 So, we iterate across them all and get the first non-empty one. If no ids are found then we must fall back to the
 old behaviour (step 3)
 */
-func getFCSId(ctx context.Context, ops DynamoDbOps, contentId string) (*string, error) {
+func getFCSId(ctx context.Context, ops DynamoDbOps, contentId int32) (*string, error) {
 	results, err := ops.QueryFCSIdForContentId(ctx, contentId)
 
 	if err != nil {
@@ -65,18 +65,12 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, con
 				return nil, MakeResponse(500, GenericErrorBody("Database error"))
 			}
 		} else {
-			//errorDetail := &ErrorDetail{
-			//	ErrorCode:   400,
-			//	ErrorString: "Invalid filespec",
-			//	FileName:    fn,
-			//}
 			return nil, MakeResponse(400, GenericErrorBody("Invalid filespec"))
 		}
 	} else if octId, haveOctId := (*queryStringParams)["octopusid"]; haveOctId {
 		if isOctIdValid(octId) {
 			octIdNum, _ := strconv.ParseInt(octId, 10, 64)
 			idMapping, err = IdMappingFromOctid(ctx, config, octIdNum)
-			log.Printf("DEBUG got id mapping record %v", idMapping)
 		} else {
 			return nil, MakeResponse(400, GenericErrorBody("Invalid octid"))
 		}
@@ -101,7 +95,11 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, conf
 		if err != nil {
 			return nil, MakeResponse(500, GenericErrorBody("Database error"))
 		}
-		log.Printf("DEBUGGING got FCS ID %v", fcsId)
+		if fcsId != nil {
+			log.Printf("DEBUGGING got FCS ID %s", *fcsId)
+		} else {
+			log.Printf("DEBUGGING did not find an FCS ID")
+		}
 		return &ContentResult{}, nil
 	} else { //fall back to direct query
 		return nil, MakeResponse(500, GenericErrorBody("Not implemented yet"))
