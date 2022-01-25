@@ -19,7 +19,9 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 		return nil, configErr
 	}
 
-	_, errResponse := common.FindContent(ctx, &event.QueryStringParameters, config)
+	ops := common.NewDynamoDbOps(config)
+
+	_, errResponse := common.FindContent(ctx, &event.QueryStringParameters, ops, config)
 	if errResponse != nil {
 		return errResponse, nil
 	}
