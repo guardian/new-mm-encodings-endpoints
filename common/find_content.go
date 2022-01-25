@@ -54,13 +54,13 @@ func getFCSId(ctx context.Context, ops DynamoDbOps, contentId int32) (*string, e
 getIDMapping tries to find an ID mapping record for the given URL, which must contain either a `file` or `octopusid`
 parameter
 */
-func getIDMapping(ctx context.Context, queryStringParams *map[string]string, config Config) (*IdMappingRecord, *events.APIGatewayProxyResponse) {
+func getIDMapping(ctx context.Context, queryStringParams *map[string]string, ops DynamoDbOps, config Config) (*IdMappingRecord, *events.APIGatewayProxyResponse) {
 	var idMapping *IdMappingRecord
 	var err error
 
 	if fn, haveFn := (*queryStringParams)["file"]; haveFn {
 		if isFilenameValid(fn) {
-			idMapping, err = IdMappingFromFilebase(ctx, config, fn)
+			idMapping, err = ops.QueryIdMappings(ctx, IdMappingIndexFilebase, IdMappingKeyfieldFilebase, fn)
 			if err != nil {
 				log.Print("ERROR FindContent could not get id mapping: ", err)
 				return nil, MakeResponse(500, GenericErrorBody("Database error"))
@@ -71,7 +71,7 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, con
 	} else if octId, haveOctId := (*queryStringParams)["octopusid"]; haveOctId {
 		if isOctIdValid(octId) {
 			octIdNum, _ := strconv.ParseInt(octId, 10, 64)
-			idMapping, err = IdMappingFromOctid(ctx, config, octIdNum)
+			idMapping, err = ops.QueryIdMappings(ctx, IdMappingIndexOctid, IdMappingKeyfieldOctid, octIdNum)
 		} else {
 			return nil, MakeResponse(400, GenericErrorBody("Invalid octid"))
 		}
@@ -97,7 +97,7 @@ Returns:
 */
 func FindContent(ctx context.Context, queryStringParams *map[string]string, ops DynamoDbOps, config Config) (*ContentResult, *events.APIGatewayProxyResponse) {
 	//FIXME: no memcache implementation yet, we'll see how necessary it actually is
-	idMapping, errResponse := getIDMapping(ctx, queryStringParams, config)
+	idMapping, errResponse := getIDMapping(ctx, queryStringParams, ops, config)
 	if errResponse != nil {
 		return nil, errResponse
 	}

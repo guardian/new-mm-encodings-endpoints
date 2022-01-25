@@ -24,6 +24,7 @@ type DynamoDbOps interface {
 	QueryFCSIdForContentId(ctx context.Context, contentId int32) (*[]string, error)
 	QueryEncodingsForFCSId(ctx context.Context, fcsid string) ([]*Encoding, error)
 	QueryEncodingsForContentId(ctx context.Context, contentid int32, maybeSince *time.Time) ([]*Encoding, error)
+	QueryIdMappings(ctx context.Context, indexName string, keyFieldName string, searchTerm interface{}) (*IdMappingRecord, error)
 }
 
 /*
@@ -212,5 +213,62 @@ func (ops *DynamoDbOpsImpl) QueryEncodingsForContentId(ctx context.Context, cont
 		return encodings, nil
 	} else {
 		return nil, err
+	}
+}
+
+const IdMappingIndexFilebase = "filebase"
+const IdMappingKeyfieldFilebase = "filebase"
+const IdMappingIndexOctid = "octopusid"
+const IdMappingKeyfieldOctid = "octopus_id"
+
+/*
+QueryIdMappings performs a lookup on the IdMappings table.  There should only ever be 1 or 0 matches; in the event of
+more than one a warning is logged and the first value is used.
+
+Arguments:
+- ctx - context that can be used to cancel the operation, normally passed through from lambda
+- indexName - the index to query. Should be an IdMappingIndex* const that is defined in `common`
+- keyFieldName - the key field to query. Should be the IdMappingKeyfield* const that corresponds to the given IdMappingIndex* used for indexName
+- searchTerm - the value to search. This must be compatible with the field type or Dynamo will return a runtime error
+Returns:
+- a pointer to an IdMappingRecord on success, or nil if nothing found or error. If both return values are `nil` that means that
+there was no data found
+- an error on failure
+*/
+func (ops *DynamoDbOpsImpl) QueryIdMappings(ctx context.Context, indexName string, keyFieldName string, searchTerm interface{}) (*IdMappingRecord, error) {
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.
+			Key(keyFieldName).
+			Equal(expression.Value(searchTerm))).
+		Build()
+
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := ops.client.Query(ctx, &dynamodb.QueryInput{
+		KeyConditionExpression:    expr.KeyCondition(),
+		ExpressionAttributeValues: expr.Values(),
+		ExpressionAttributeNames:  expr.Names(),
+		TableName:                 aws.String(ops.config.IdMappingTable()),
+		IndexName:                 &indexName,
+		Limit:                     aws.Int32(20),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Items == nil {
+		return nil, nil
+	}
+
+	if len(response.Items) == 0 {
+		return nil, nil
+	} else if len(response.Items) == 1 {
+		return NewIdMappingRecord(&response.Items[0])
+	} else {
+		log.Printf("WARNING Got %d idmapping records, expected only 1. Note that there is a hard limit of 20.", len(response.Items))
+		return NewIdMappingRecord(&response.Items[0])
 	}
 }
