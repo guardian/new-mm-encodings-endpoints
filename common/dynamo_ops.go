@@ -21,6 +21,7 @@ DynamoDbOps abstracts the actual DynamoDb operations so that we can mock them in
 */
 type DynamoDbOps interface {
 	QueryFCSIdForContentId(ctx context.Context, contentId int32) (*[]string, error)
+	QueryEncodingsForFCSId(ctx context.Context, fcsid string) ([]*Encoding, error)
 }
 
 /*
@@ -106,4 +107,46 @@ func (ops *DynamoDbOpsImpl) QueryFCSIdForContentId(ctx context.Context, contentI
 		}
 	}
 	return &finalOutputs, nil
+}
+
+/*
+QueryEncodingsForFCSId searches the Encodings table for videos corresponding to the given fcsid
+and returns a slice of pointers to the marshalled Encoding objects
+*/
+func (ops *DynamoDbOpsImpl) QueryEncodingsForFCSId(ctx context.Context, fcsid string) ([]*Encoding, error) {
+	//equivalent SQL is select * from encodings left join mime_equivalents on (real_name=encodings.format) where fcs_id='$fcsid' order by vbitrate desc
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.Key("fcs_id").Equal(expression.Value(fcsid))).
+		Build()
+	if err != nil {
+		log.Printf("ERROR QueryEncodingsForFCSId could not build the query expression: %s", err)
+		return nil, err
+	}
+
+	rq := &dynamodb.QueryInput{
+		TableName:                 ops.config.EncodingsTablePtr(),
+		ExclusiveStartKey:         nil,
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		KeyConditionExpression:    expr.KeyCondition(),
+	}
+	response, err := ops.client.Query(ctx, rq)
+	if err != nil {
+		log.Printf("ERROR QueryEncodingsForFCSId could not perform the query: %s", err)
+		return nil, err
+	}
+
+	encodings := make([]*Encoding, len(response.Items))
+	for i, rawData := range response.Items {
+		encodings[i], err = EncodingFromDynamo((*RawDynamoRecord)(&rawData))
+		if err != nil {
+			log.Printf("ERROR QueryEncodingsForFCSId could not marshal item %d (%v): %s", i, rawData, err)
+			return nil, err
+		}
+	}
+
+	sort.Slice(encodings, func(i int, j int) bool {
+		return encodings[i].VBitrate > encodings[j].VBitrate
+	})
+	return encodings, nil
 }
