@@ -64,6 +64,8 @@ Resources:
       AttributeDefinitions:
         - AttributeName: encodingid
           AttributeType: N
+        - AttributeName: contentid
+          AttributeType: N
 #        - AttributeName: lastupdate
 #          AttributeType: S
         - AttributeName: fcs_id
@@ -82,6 +84,14 @@ Resources:
             - AttributeName: octopus_id
               KeyType: HASH
             - AttributeName: encodingid
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: contentid
+          KeySchema:
+            - AttributeName: contentid
+              KeyType: HASH
+            - AttributeName: fcs_id
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
