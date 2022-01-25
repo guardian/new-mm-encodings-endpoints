@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Basic API Gateway setup that is common to CODE and PROD stages
+Description: Github Actions permissions for new-encodings-endpoints
 Parameters:
   OIDCProviderArn:
     Description: ARN of the pre-created Github Actions OIDC provider (see https://github.com/aws-actions/configure-aws-credentials)
