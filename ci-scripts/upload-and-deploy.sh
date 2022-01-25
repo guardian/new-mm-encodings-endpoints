@@ -39,7 +39,7 @@ aws s3 cp "$1" "s3://${DEPLOYMENTBUCKET}/${APP}/${STACK}/${UPLOADVERSION}/$1"
 
 if [ "$?" != "0" ]; then
   echo Upload failed!
-  exit $?
+  exit 1
 fi
 
 #if there is no function name specified then exit now
@@ -47,7 +47,12 @@ if [ "$2" == "" ]; then
   exit 0
 fi
 
-aws lambda update-function-code --function-name "$2" --s3-bucket "${DEPLOYMENTBUCKET}" --s3-key "${APP}/${STACK}/${UPLOADVERSION}/$1"
+aws lambda update-function-code --function-name "$2" --s3-bucket "${DEPLOYMENTBUCKET}" --s3-key "${APP}/${STACK}/${UPLOADVERSION}/$1" > /dev/null
+if [ "$?" != "0" ]; then
+  echo Could not post update to lambda!
+  exit 1
+fi
+
 PUBLISHED=0
 CTR=0
 while [[ "$PUBLISHED" == "0" ]]; do
@@ -64,8 +69,27 @@ done
 VERS=$(jq .Version < published-version.json | sed s/\"//g) #extract the version number with JQ. It comes as a string so we must strip out the quotes.
 echo "We have just (re-)deployed version $VERS"
 
-if [ "${STAGE}" == "" ]; then
-  echo Not linking to any deployment as STAGE is not set
+if [ "${GITHUB_HEAD_REF}" != "" ] || [ "${GITHUB_REF}" != "" ]; then
+  echo Running on Github with ref ${GITHUB_REF}
+  BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}  #https://stackoverflow.com/a/68674820/2840056
+  echo Creating alias for branch ${BRANCH}
+  aws lambda create-alias --function-name "$2" --name "${BRANCH}" --function-version "${VERS}" > /dev/null
+  if [ "$?" != "0" ]; then
+    #if the 'create' operation fails, then try to update instead
+    echo Create alias failed, trying update instead...
+    aws lambda update-alias --function-name "$2" --name "${BRANCH}" --function-version "${VERS}" > /dev/null
+    if [ "$?" != "0" ]; then
+      echo Could not create or updatefunction alias for version ${VERS} to ${BRANCH} > /dev/null
+      exit 1
+    fi
+    echo Update successful
+  fi
 else
-  aws lambda update-alias --function-name "$2" --name "${STAGE}" --function-version "${VERS}"
+  if [ "${STAGE}" == "" ]; then
+    echo Not linking to any deployment as STAGE is not set
+  else
+    aws lambda update-alias --function-name "$2" --name "${STAGE}" --function-version "${VERS}"
+  fi
 fi
+
+echo Build completed

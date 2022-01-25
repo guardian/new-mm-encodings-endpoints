@@ -1,0 +1,40 @@
+name: Build encodingsendpoints
+
+on:
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      APP: encodings-endpoint
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: GHA-build
+
+      - name: Test
+        run: make test
+
+      - name: Build and create version
+        env:
+          DEPLOYMENTBUCKET: ${{ secrets.DEPLOY_BUCKET }}
+          STACK: ${{ secrets.STACK_TAG }}
+        run: make clean && make deploy

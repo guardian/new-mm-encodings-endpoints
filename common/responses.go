@@ -14,6 +14,10 @@ type ErrorDetail struct {
 	QueryUrl    string `json:"query_url"`
 }
 
+/*
+GenericErrorBody generates a standard error response suitable for serialization into json
+Arguments: `msg` - string to include as the "detail" field in the returned json object
+*/
 func GenericErrorBody(msg string) map[string]string {
 	return map[string]string{
 		"status": "error",
@@ -21,6 +25,17 @@ func GenericErrorBody(msg string) map[string]string {
 	}
 }
 
+/*
+MakeResponse takes a JSON-serializable object and returns a pointer to an APIGatewayProxyResponse that can be
+passed straight back to API Gateway.
+
+Arguments:
+- responseCode - HTTP response code to return to the caller
+- contentBody - a JSON-serializable object.  This is serialized to json and the resulting byte stream used as the
+response body.  If the serialization fails for any reason then an error is logged and a generic 500 error response is returned.
+Returns:
+- Pointer to an APIGatewayProxyResponse object
+*/
 func MakeResponse(responseCode int, contentBody interface{}) *events.APIGatewayProxyResponse {
 	jsonBytes, marshalErr := json.Marshal(contentBody)
 	if marshalErr != nil {

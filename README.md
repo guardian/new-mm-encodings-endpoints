@@ -140,7 +140,7 @@ endpoint to be called, it must be associated with a deployment stage.
 
 The cloudformation here provides two stages - `CODE` and `PROD`.  A deployment stage has its own arbitary metadata keys
 which are passed to code when it is run, called "Stage Variables".  Our stages here have a single stage variable called `stage`
-which is simply equal to the name of the deployment stage - either `CODE` or `PROD`.
+which gives the name of an alias to link to.  This is normally a branch name (see "CI Integration" later)
 
 The lambda function is associated with the REST API by way of a `AWS::ApiGateway::Method`.  This tells API Gateway
 what it should execute and how as well as what subpath it should correspond to (via a link to a `AWS::ApiGateway::Resource`).
@@ -162,27 +162,23 @@ arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ReferenceAPI}:${!stag
 ```
 
 This last : separated parameter gives the _version_ or _alias_ of the lambda function to invoke.  Here, we take the value
-of the `stage` "Stage Variable" (set to either `PROD` or `CODE`, as above) and use it as the _alias_ name of the function
+of the `stage` "Stage Variable" (set to a branch name, as above) and use it as the _alias_ name of the function
 to invoke.
 
-Therefore, the `PROD` deployment stage will invoke the lambda function version with the alias `PROD` and the `CODE` deployment
-stage will invoke the lambda function with the alias `CODE`.  You could even create a deployment stage called
-`Sausages` and it would try to invoke the lambda function version with an alias `Sausages` (and would fail, unless you
-had created it first).
+Therefore, the `PROD` deployment stage will invoke the lambda function version with the alias `main` (usually!) and the
+`CODE` deployment stage will invoke the lambda function with the alias of whatever you're developing on.
+You could even create a deployment stage called `Sausages` and it would try to invoke the lambda function version with
+an alias `Sausages` (and would fail, unless you had created it first).
 
-In this way, you can release to CODE simply by setting the environment variable `STAGE=CODE` on your terminal and running
-`make deploy`.  That would build the code, upload it, create a function version and associate the alias `CODE` with it and
-cause the CODE deployment stage of the API to invoke your updated function the next time it is called.
-
-Technically you can release to PROD in the same way, but I wouldn't recommend it - it's better practise to use a proper
-CI workflow (and usually a Canary too)
+Technically you can release to PROD just by merging and having it reference the `main` branch, but I wouldn't recommend 
+it - it's better practise to use a Canary to test you haven't broken anything.
 
 ### What the hell is a Canary?
 
 For full details, see here: https://docs.aws.amazon.com/apigateway/latest/developerguide/canary-release.html
 
 Briefly, a Canary is like a _proposed_ change to a deployment stage.  For example, say we have version 321 which we want
-to deploy to PROD.  We could just change the PROD alias to point to version 321 (in the Lambda console), but what if
+to deploy to PROD.  We could just use the API Gateway console to change the `stage` variable for PROD to `321`, but what if
 there is a bug in 321? We would then have a complete outage until the change is reverted.
 
 Instead, we can create a Canary on the PROD deployment stage via the API Gateway console.  This allows us to override the
@@ -195,7 +191,23 @@ the canary which will overwrite the config for the PROD stage with the Canary's 
 
 ### CI Integration
 
-Not done yet
+Before you can use the CI integration, you need to have the deployment set up as above.
+
+CI is performed via Github Actions, with the master script in the `.github/workflows/build.yml` file.
+
+A standard `make test` / `make clean` / `make deploy` is run on every merge request.  This means that:
+- if the tests fail or there is a build problem nothing is output
+- on a successful build, a new version of the each Lambda function is created in AWS
+- once a version has been created, an alias is created with the name of the current branch (if it does not exist already)
+- the branch-name alias is pointed to the newly-created version
+
+This means that in order to test on, say, CODE, you can go to the CODE stage in the API Gateway console and update the
+Stage Variable called `stage` to your branch name and it will run the latest function version from that branch.
+
+If you need to test in the real-world, you can set up a Canary on PROD (see preceding section) pointing to your branch.
+This would send, say, 10% of API calls to your branch version and the other 90% to the deployed version.
+
+Once a request is merged and built it will be tagged with the alias `main`.
 
 ## Proper DNS names
 
