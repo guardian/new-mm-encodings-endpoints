@@ -89,6 +89,7 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, conf
 		return nil, errResponse
 	}
 
+	var contentToFilter []*Encoding
 	log.Printf("DEBUGGING got id mapping result %v", idMapping)
 	if idMapping != nil { //we got a result from idmapping
 		fcsId, err := getFCSId(ctx, ops, idMapping.contentId)
@@ -97,11 +98,20 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, conf
 		}
 		if fcsId != nil {
 			log.Printf("DEBUGGING got FCS ID %s", *fcsId)
+			contentToFilter, err = ops.QueryEncodingsForFCSId(ctx, *fcsId)
+			if err != nil {
+				log.Printf("ERROR Could not query encodings: %s", err)
+				return nil, MakeResponse(500, GenericErrorBody("Database error"))
+			}
+			for _, c := range contentToFilter {
+				log.Printf("INFO Got record %v", *c)
+			}
 		} else {
 			log.Printf("DEBUGGING did not find an FCS ID")
 		}
-		return &ContentResult{}, nil
 	} else { //fall back to direct query
 		return nil, MakeResponse(500, GenericErrorBody("Not implemented yet"))
 	}
+
+	return &ContentResult{}, nil
 }
