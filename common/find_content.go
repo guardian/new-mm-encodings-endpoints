@@ -194,11 +194,10 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		maxwidth = int32(parseIntOutput)
 	}
 
-	var filteredContent = ContentResult{}
-
 	if len(contentToFilter) > 0 {
-		filteredContent = ContentFilter(contentToFilter, format, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
+		filteredContent := ContentFilter(contentToFilter, format, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
+		return filteredContent, nil
+	} else {
+		return nil, MakeResponse(404, GenericErrorBody("No encodings matching your request"))
 	}
-
-	return &filteredContent, nil
 }
