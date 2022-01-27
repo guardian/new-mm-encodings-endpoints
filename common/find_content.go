@@ -194,7 +194,11 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		maxwidth = int32(parseIntOutput)
 	}
 
-	var filteredContent = ContentFilter(contentToFilter, format, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
+	var filteredContent = ContentResult{}
 
-	return &ContentResult{}, nil
+	if len(contentToFilter) > 0 {
+		filteredContent = ContentFilter(contentToFilter, format, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
+	}
+
+	return &filteredContent, nil
 }
