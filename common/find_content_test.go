@@ -375,7 +375,7 @@ func TestFindContentFallback(t *testing.T) {
 			octopus_id: aws.Int64(123456),
 		},
 		FCSIdForContentIdResults: nil,
-		EncodingsForFCSIdResults: []*Encoding{
+		EncodingsForContentIdResults: []*Encoding{
 			&Encoding{
 				EncodingId:  123,
 				ContentId:   111,
