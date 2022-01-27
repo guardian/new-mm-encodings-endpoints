@@ -8,7 +8,7 @@ import (
 
 func TestNewIdMappingRecord(t *testing.T) {
 	sampleData := &map[string]types.AttributeValue{
-		"contentId":  &types.AttributeValueMemberS{Value: "somecontent"},
+		"contentid":  &types.AttributeValueMemberN{Value: "98765"},
 		"filebase":   &types.AttributeValueMemberS{Value: "somefile"},
 		"lastupdate": &types.AttributeValueMemberS{Value: "2020-01-02T03:04:05Z"},
 		"octopus_id": &types.AttributeValueMemberN{Value: "12345"},
@@ -30,8 +30,8 @@ func TestNewIdMappingRecord(t *testing.T) {
 		if rec.project != nil {
 			t.Error("NewIdMappingRecord returned a value for project when none was set")
 		}
-		if rec.contentId != "somecontent" {
-			t.Errorf("NewIdMappingRecord returned incorrect content id %s", rec.contentId)
+		if rec.contentId != 98765 {
+			t.Errorf("NewIdMappingRecord returned incorrect content id %d", rec.contentId)
 		}
 		if *rec.octopus_id != 12345 {
 			t.Errorf("NewIdMappingRecord returned incorrect octopus id %d", *rec.octopus_id)

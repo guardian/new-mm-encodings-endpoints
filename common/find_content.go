@@ -22,6 +22,33 @@ func isOctIdValid(octid string) bool {
 	return matcher.MatchString(octid)
 }
 
+/*
+getFCSId returns the FCS ID for a given contentId.
+
+The FCS id uniquely identifies the version (as opposed to octopus_id uniquely identifies the title which can have
+multiple versions.
+Versions can have subtly different bitrates AND arrive at different times, so just searching versions with a sort order
+can return old results no matter what.
+So, the first step is to find the most recent FCS ID and then search with that
+Some entries may not have FCS IDs, and if uncaught this leads to all such entries being treated as the same title.
+So, we iterate across them all and get the first non-empty one. If no ids are found then we must fall back to the
+old behaviour (step 3)
+*/
+func getFCSId(ctx context.Context, ops DynamoDbOps, contentId int32) (*string, error) {
+	results, err := ops.QueryFCSIdForContentId(ctx, contentId)
+
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range *results {
+		if r != "" {
+			finalResult := r
+			return &finalResult, nil
+		}
+	}
+	return nil, nil
+}
+
 /**
 getIDMapping tries to find an ID mapping record for the given URL, which must contain either a `file` or `octopusid`
 parameter
@@ -35,19 +62,9 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, con
 			idMapping, err = IdMappingFromFilebase(ctx, config, fn)
 			if err != nil {
 				log.Print("ERROR FindContent could not get id mapping: ", err)
-				//errorDetail := &ErrorDetail{
-				//	ErrorCode:   500,
-				//	ErrorString: err.Error(),
-				//	FileName:    fn,
-				//}
 				return nil, MakeResponse(500, GenericErrorBody("Database error"))
 			}
 		} else {
-			//errorDetail := &ErrorDetail{
-			//	ErrorCode:   400,
-			//	ErrorString: "Invalid filespec",
-			//	FileName:    fn,
-			//}
 			return nil, MakeResponse(400, GenericErrorBody("Invalid filespec"))
 		}
 	} else if octId, haveOctId := (*queryStringParams)["octopusid"]; haveOctId {
@@ -64,13 +81,49 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, con
 	return idMapping, nil
 }
 
-func FindContent(ctx context.Context, queryStringParams *map[string]string, config Config) (*ContentResult, *events.APIGatewayProxyResponse) {
+/*
+FindContent is the main entry point to the common logic for all the endpoints. It takes in the query parameters and tries to
+find the best match for them, returning this as a pointer to ContentResult.
+
+Arguments:
+- ctx - context that can be used to cancel the operation, passed in from lambda functions
+- queryStringParams - pointer to a string-string map representing the query parameters from the URL
+- ops - a DynamoDbOps object that abstracts the actual Dynamo operations for mocking
+- config - a Config object that encapsulates the runtime configuration
+Returns:
+- a pointer to ContentResult on success
+- a pointer to APIGatewayProxyResponse on error. This can be passed back directly to the runtime.
+*/
+func FindContent(ctx context.Context, queryStringParams *map[string]string, ops DynamoDbOps, config Config) (*ContentResult, *events.APIGatewayProxyResponse) {
 	//FIXME: no memcache implementation yet, we'll see how necessary it actually is
 	idMapping, errResponse := getIDMapping(ctx, queryStringParams, config)
 	if errResponse != nil {
 		return nil, errResponse
 	}
 
+	var contentToFilter []*Encoding
 	log.Printf("DEBUGGING got id mapping result %v", idMapping)
+	if idMapping != nil { //we got a result from idmapping
+		fcsId, err := getFCSId(ctx, ops, idMapping.contentId)
+		if err != nil {
+			return nil, MakeResponse(500, GenericErrorBody("Database error"))
+		}
+		if fcsId != nil {
+			log.Printf("DEBUGGING got FCS ID %s", *fcsId)
+			contentToFilter, err = ops.QueryEncodingsForFCSId(ctx, *fcsId)
+			if err != nil {
+				log.Printf("ERROR Could not query encodings: %s", err)
+				return nil, MakeResponse(500, GenericErrorBody("Database error"))
+			}
+			for _, c := range contentToFilter {
+				log.Printf("INFO Got record %v", *c)
+			}
+		} else {
+			log.Printf("DEBUGGING did not find an FCS ID")
+		}
+	} else { //fall back to direct query
+		return nil, MakeResponse(500, GenericErrorBody("Not implemented yet"))
+	}
+
 	return &ContentResult{}, nil
 }

@@ -30,6 +30,7 @@ Config is exposed as an interface to allow for mocking
 type Config interface {
 	GetDynamoClient() *dynamodb.Client
 	IdMappingTable() string
+	EncodingsTablePtr() *string
 }
 
 /*
@@ -79,4 +80,8 @@ func (c *ConfigImpl) GetDynamoClient() *dynamodb.Client {
 
 func (c *ConfigImpl) IdMappingTable() string {
 	return c.idMappingTable
+}
+
+func (c *ConfigImpl) EncodingsTablePtr() *string {
+	return aws.String(c.DyanmoContentTable)
 }
