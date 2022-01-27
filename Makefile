@@ -12,7 +12,7 @@ migration:
 	make -C migration/
 
 test:
-	go test ./...
+	go test -v ./...
 
 coverage:
 	rm -f cover.out
