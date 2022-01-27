@@ -19,7 +19,7 @@ func isFilenameValid(fn string) bool {
 }
 
 func isOctIdValid(octid string) bool {
-	matcher := regexp.MustCompile("\\d+")
+	matcher := regexp.MustCompile("^\\d+$")
 	return matcher.MatchString(octid)
 }
 
