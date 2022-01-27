@@ -6,6 +6,7 @@ import (
 	"log"
 	"regexp"
 	"strconv"
+	"time"
 )
 
 /**
@@ -18,7 +19,7 @@ func isFilenameValid(fn string) bool {
 }
 
 func isOctIdValid(octid string) bool {
-	matcher := regexp.MustCompile("\\d+")
+	matcher := regexp.MustCompile("^\\d+$")
 	return matcher.MatchString(octid)
 }
 
@@ -40,6 +41,10 @@ func getFCSId(ctx context.Context, ops DynamoDbOps, contentId int32) (*string, e
 	if err != nil {
 		return nil, err
 	}
+	if results == nil {
+		return nil, nil
+	}
+
 	for _, r := range *results {
 		if r != "" {
 			finalResult := r
@@ -53,13 +58,13 @@ func getFCSId(ctx context.Context, ops DynamoDbOps, contentId int32) (*string, e
 getIDMapping tries to find an ID mapping record for the given URL, which must contain either a `file` or `octopusid`
 parameter
 */
-func getIDMapping(ctx context.Context, queryStringParams *map[string]string, config Config) (*IdMappingRecord, *events.APIGatewayProxyResponse) {
+func getIDMapping(ctx context.Context, queryStringParams *map[string]string, ops DynamoDbOps, config Config) (*IdMappingRecord, *events.APIGatewayProxyResponse) {
 	var idMapping *IdMappingRecord
 	var err error
 
 	if fn, haveFn := (*queryStringParams)["file"]; haveFn {
 		if isFilenameValid(fn) {
-			idMapping, err = IdMappingFromFilebase(ctx, config, fn)
+			idMapping, err = ops.QueryIdMappings(ctx, IdMappingIndexFilebase, IdMappingKeyfieldFilebase, fn)
 			if err != nil {
 				log.Print("ERROR FindContent could not get id mapping: ", err)
 				return nil, MakeResponse(500, GenericErrorBody("Database error"))
@@ -70,7 +75,7 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, con
 	} else if octId, haveOctId := (*queryStringParams)["octopusid"]; haveOctId {
 		if isOctIdValid(octId) {
 			octIdNum, _ := strconv.ParseInt(octId, 10, 64)
-			idMapping, err = IdMappingFromOctid(ctx, config, octIdNum)
+			idMapping, err = ops.QueryIdMappings(ctx, IdMappingIndexOctid, IdMappingKeyfieldOctid, octIdNum)
 		} else {
 			return nil, MakeResponse(400, GenericErrorBody("Invalid octid"))
 		}
@@ -96,33 +101,49 @@ Returns:
 */
 func FindContent(ctx context.Context, queryStringParams *map[string]string, ops DynamoDbOps, config Config) (*ContentResult, *events.APIGatewayProxyResponse) {
 	//FIXME: no memcache implementation yet, we'll see how necessary it actually is
-	idMapping, errResponse := getIDMapping(ctx, queryStringParams, config)
+	idMapping, errResponse := getIDMapping(ctx, queryStringParams, ops, config)
 	if errResponse != nil {
 		return nil, errResponse
 	}
 
 	var contentToFilter []*Encoding
 	log.Printf("DEBUGGING got id mapping result %v", idMapping)
-	if idMapping != nil { //we got a result from idmapping
-		fcsId, err := getFCSId(ctx, ops, idMapping.contentId)
+	if idMapping == nil { //nothing in idmapping => does not exist
+		return nil, MakeResponse(404, GenericErrorBody("Content not found"))
+	}
+	var err error
+
+	fcsId, err := getFCSId(ctx, ops, idMapping.contentId)
+	if err != nil {
+		return nil, MakeResponse(500, GenericErrorBody("Database error"))
+	}
+
+	if fcsId != nil {
+		log.Printf("DEBUGGING got FCS ID %s", *fcsId)
+		contentToFilter, err = ops.QueryEncodingsForFCSId(ctx, *fcsId)
 		if err != nil {
+			log.Printf("ERROR Could not query encodings: %s", err)
 			return nil, MakeResponse(500, GenericErrorBody("Database error"))
 		}
-		if fcsId != nil {
-			log.Printf("DEBUGGING got FCS ID %s", *fcsId)
-			contentToFilter, err = ops.QueryEncodingsForFCSId(ctx, *fcsId)
-			if err != nil {
-				log.Printf("ERROR Could not query encodings: %s", err)
-				return nil, MakeResponse(500, GenericErrorBody("Database error"))
-			}
-			for _, c := range contentToFilter {
-				log.Printf("INFO Got record %v", *c)
-			}
-		} else {
-			log.Printf("DEBUGGING did not find an FCS ID")
+	}
+
+	if contentToFilter == nil { //we didn't get any results yet
+		log.Print("INFO No content from primary search, falling back to secondary")
+		_, haveAllowOld := (*queryStringParams)["allow_old"]
+		var maybeSince *time.Time
+		if !haveAllowOld {
+			maybeSince = &idMapping.lastupdate
+			log.Printf("INFO allow_old not set, only looking for results since %s", maybeSince.Format(time.RFC3339))
 		}
-	} else { //fall back to direct query
-		return nil, MakeResponse(500, GenericErrorBody("Not implemented yet"))
+		contentToFilter, err = ops.QueryEncodingsForContentId(ctx, idMapping.contentId, maybeSince)
+		if err != nil {
+			log.Printf("ERROR Could not query encodings: %s", err)
+			return nil, MakeResponse(500, GenericErrorBody("Database error"))
+		}
+	}
+
+	for _, c := range contentToFilter {
+		log.Printf("INFO Got record %v", *c)
 	}
 
 	return &ContentResult{}, nil

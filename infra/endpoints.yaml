@@ -66,8 +66,8 @@ Resources:
           AttributeType: N
         - AttributeName: contentid
           AttributeType: N
-#        - AttributeName: lastupdate
-#          AttributeType: S
+        - AttributeName: lastupdate
+          AttributeType: S
         - AttributeName: fcs_id
           AttributeType: S
         - AttributeName: octopus_id
@@ -91,7 +91,7 @@ Resources:
           KeySchema:
             - AttributeName: contentid
               KeyType: HASH
-            - AttributeName: fcs_id
+            - AttributeName: lastupdate
               KeyType: RANGE
           Projection:
             ProjectionType: ALL

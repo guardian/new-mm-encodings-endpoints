@@ -9,6 +9,7 @@ import (
 	"log"
 	"reflect"
 	"sort"
+	"time"
 )
 
 type DynamoDbOpsImpl struct {
@@ -22,6 +23,8 @@ DynamoDbOps abstracts the actual DynamoDb operations so that we can mock them in
 type DynamoDbOps interface {
 	QueryFCSIdForContentId(ctx context.Context, contentId int32) (*[]string, error)
 	QueryEncodingsForFCSId(ctx context.Context, fcsid string) ([]*Encoding, error)
+	QueryEncodingsForContentId(ctx context.Context, contentid int32, maybeSince *time.Time) ([]*Encoding, error)
+	QueryIdMappings(ctx context.Context, indexName string, keyFieldName string, searchTerm interface{}) (*IdMappingRecord, error)
 }
 
 /*
@@ -110,6 +113,26 @@ func (ops *DynamoDbOpsImpl) QueryFCSIdForContentId(ctx context.Context, contentI
 }
 
 /*
+Internal function that takes a QueryOutput and builds a list of Encodings to return then sorts them by VBitrate
+*/
+func _marshalResponseToSortedEncodings(response *dynamodb.QueryOutput) ([]*Encoding, error) {
+	var err error
+	encodings := make([]*Encoding, len(response.Items))
+	for i, rawData := range response.Items {
+		encodings[i], err = EncodingFromDynamo((*RawDynamoRecord)(&rawData))
+		if err != nil {
+			log.Printf("ERROR QueryEncodingsForFCSId could not marshal item %d (%v): %s", i, rawData, err)
+			return nil, err
+		}
+	}
+
+	sort.Slice(encodings, func(i int, j int) bool {
+		return encodings[i].VBitrate > encodings[j].VBitrate
+	})
+	return encodings, nil
+}
+
+/*
 QueryEncodingsForFCSId searches the Encodings table for videos corresponding to the given fcsid
 and returns a slice of pointers to the marshalled Encoding objects
 */
@@ -136,17 +159,116 @@ func (ops *DynamoDbOpsImpl) QueryEncodingsForFCSId(ctx context.Context, fcsid st
 		return nil, err
 	}
 
-	encodings := make([]*Encoding, len(response.Items))
-	for i, rawData := range response.Items {
-		encodings[i], err = EncodingFromDynamo((*RawDynamoRecord)(&rawData))
-		if err != nil {
-			log.Printf("ERROR QueryEncodingsForFCSId could not marshal item %d (%v): %s", i, rawData, err)
-			return nil, err
-		}
+	return _marshalResponseToSortedEncodings(response)
+}
+
+/*
+QueryEncodingsForContentId looks up records from the Encodings table corresponding to the given contentid.
+This is the "fallback mode" query for when no title version id can be found
+
+Arguments:
+- ctx - context that can be used to cancel this operation
+- contentid - the content ID to query for
+- maybeSince - nullable pointer to a time. If this is non-NULL then only records with 'lastupdate' equal to or since this time will be retrieved
+Returns:
+- a slice of pointers to matching Encoding records on success
+- an error on failure
+*/
+func (ops *DynamoDbOpsImpl) QueryEncodingsForContentId(ctx context.Context, contentid int32, maybeSince *time.Time) ([]*Encoding, error) {
+	//equivalent SQL is select * from encodings left join mime_equivalents on (real_name=encodings.format) where contentid=$contentid order by vbitrate desc,lastupdate desc
+	keyTerms := expression.Key("contentid").Equal(expression.Value(contentid))
+	if maybeSince != nil {
+		keyTerms = keyTerms.And(expression.Key("lastupdate").GreaterThanEqual(expression.Value(maybeSince.Format(time.RFC3339))))
 	}
 
-	sort.Slice(encodings, func(i int, j int) bool {
-		return encodings[i].VBitrate > encodings[j].VBitrate
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(keyTerms).
+		Build()
+
+	if err != nil {
+		log.Printf("ERROR QueryEncodingsForContentId could not build the query expression: %s", err)
+		return nil, err
+	}
+	rq := &dynamodb.QueryInput{
+		TableName:                 ops.config.EncodingsTablePtr(),
+		ExclusiveStartKey:         nil,
+		IndexName:                 aws.String("contentid"),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		KeyConditionExpression:    expr.KeyCondition(),
+	}
+
+	response, err := ops.client.Query(ctx, rq)
+	if err != nil {
+		log.Printf("ERROR QueryEncodingsForContentId could not execute the query: %s", err)
+		return nil, err
+	}
+
+	encodings, err := _marshalResponseToSortedEncodings(response)
+	if err == nil {
+		//apply a most-recent-first search
+		sort.Slice(encodings, func(i int, j int) bool {
+			return encodings[i].LastUpdate.Unix() > encodings[j].LastUpdate.Unix()
+		})
+		return encodings, nil
+	} else {
+		return nil, err
+	}
+}
+
+const IdMappingIndexFilebase = "filebase"
+const IdMappingKeyfieldFilebase = "filebase"
+const IdMappingIndexOctid = "octopusid"
+const IdMappingKeyfieldOctid = "octopus_id"
+
+/*
+QueryIdMappings performs a lookup on the IdMappings table.  There should only ever be 1 or 0 matches; in the event of
+more than one a warning is logged and the first value is used.
+
+Arguments:
+- ctx - context that can be used to cancel the operation, normally passed through from lambda
+- indexName - the index to query. Should be an IdMappingIndex* const that is defined in `common`
+- keyFieldName - the key field to query. Should be the IdMappingKeyfield* const that corresponds to the given IdMappingIndex* used for indexName
+- searchTerm - the value to search. This must be compatible with the field type or Dynamo will return a runtime error
+Returns:
+- a pointer to an IdMappingRecord on success, or nil if nothing found or error. If both return values are `nil` that means that
+there was no data found
+- an error on failure
+*/
+func (ops *DynamoDbOpsImpl) QueryIdMappings(ctx context.Context, indexName string, keyFieldName string, searchTerm interface{}) (*IdMappingRecord, error) {
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.
+			Key(keyFieldName).
+			Equal(expression.Value(searchTerm))).
+		Build()
+
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := ops.client.Query(ctx, &dynamodb.QueryInput{
+		KeyConditionExpression:    expr.KeyCondition(),
+		ExpressionAttributeValues: expr.Values(),
+		ExpressionAttributeNames:  expr.Names(),
+		TableName:                 aws.String(ops.config.IdMappingTable()),
+		IndexName:                 &indexName,
+		Limit:                     aws.Int32(20),
 	})
-	return encodings, nil
+
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Items == nil {
+		return nil, nil
+	}
+
+	if len(response.Items) == 0 {
+		return nil, nil
+	} else if len(response.Items) == 1 {
+		return NewIdMappingRecord(&response.Items[0])
+	} else {
+		log.Printf("WARNING Got %d idmapping records, expected only 1. Note that there is a hard limit of 20.", len(response.Items))
+		return NewIdMappingRecord(&response.Items[0])
+	}
 }
