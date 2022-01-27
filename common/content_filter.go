@@ -16,7 +16,7 @@ Returns:
 - bool - true if the encoding should pass and false if it should not
 */
 func TestEncoding(encoding *Encoding, format string, need_mobile bool, minbitrate int32, maxbitrate int32, minheight int32, maxheight int32, minwidth int32, maxwidth int32) bool {
-	if encoding.Format != format {
+	if (encoding.Format != format) && (format != "") {
 		return false
 	}
 
@@ -24,27 +24,27 @@ func TestEncoding(encoding *Encoding, format string, need_mobile bool, minbitrat
 		return false
 	}
 
-	if encoding.VBitrate < minbitrate {
+	if (encoding.VBitrate < minbitrate) && (minbitrate != 0) {
 		return false
 	}
 
-	if encoding.VBitrate > maxbitrate {
+	if (encoding.VBitrate > maxbitrate) && (maxbitrate != 0) {
 		return false
 	}
 
-	if encoding.FrameHeight < minheight {
+	if (encoding.FrameHeight < minheight) && (minheight != 0) {
 		return false
 	}
 
-	if encoding.FrameHeight > maxheight {
+	if (encoding.FrameHeight > maxheight) && (maxheight != 0) {
 		return false
 	}
 
-	if encoding.FrameWidth < minwidth {
+	if (encoding.FrameWidth < minwidth) && (minwidth != 0) {
 		return false
 	}
 
-	if encoding.FrameWidth > maxwidth {
+	if (encoding.FrameWidth > maxwidth) && (maxwidth != 0) {
 		return false
 	}
 
