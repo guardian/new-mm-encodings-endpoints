@@ -146,5 +146,58 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		log.Printf("INFO Got record %v", *c)
 	}
 
-	return &ContentResult{}, nil
+	var format = ""
+	if val, ok := (*queryStringParams)["format"]; ok {
+		format = val
+	}
+
+	var need_mobile = false
+	if val, ok := (*queryStringParams)["need_mobile"]; ok {
+		if val == "true" {
+			need_mobile = true
+		}
+	}
+
+	var minbitrate int32 = 0
+	if val, ok := (*queryStringParams)["minbitrate"]; ok {
+		var parseIntOutput, _ = strconv.ParseInt(val, 10, 32)
+		minbitrate = int32(parseIntOutput)
+	}
+
+	var maxbitrate int32 = 0
+	if val, ok := (*queryStringParams)["maxbitrate"]; ok {
+		var parseIntOutput, _ = strconv.ParseInt(val, 10, 32)
+		maxbitrate = int32(parseIntOutput)
+	}
+
+	var minheight int32 = 0
+	if val, ok := (*queryStringParams)["minheight"]; ok {
+		var parseIntOutput, _ = strconv.ParseInt(val, 10, 32)
+		minheight = int32(parseIntOutput)
+	}
+
+	var maxheight int32 = 0
+	if val, ok := (*queryStringParams)["maxheight"]; ok {
+		var parseIntOutput, _ = strconv.ParseInt(val, 10, 32)
+		maxheight = int32(parseIntOutput)
+	}
+
+	var minwidth int32 = 0
+	if val, ok := (*queryStringParams)["minwidth"]; ok {
+		var parseIntOutput, _ = strconv.ParseInt(val, 10, 32)
+		minwidth = int32(parseIntOutput)
+	}
+
+	var maxwidth int32 = 0
+	if val, ok := (*queryStringParams)["maxwidth"]; ok {
+		var parseIntOutput, _ = strconv.ParseInt(val, 10, 32)
+		maxwidth = int32(parseIntOutput)
+	}
+
+	if len(contentToFilter) > 0 {
+		filteredContent := ContentFilter(contentToFilter, format, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
+		return filteredContent, nil
+	} else {
+		return nil, MakeResponse(404, GenericErrorBody("No encodings matching your request"))
+	}
 }
