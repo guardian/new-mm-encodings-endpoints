@@ -21,15 +21,19 @@ func AsyncRecordReader(client *dynamodb.Client, tableName *string, pageSize int3
 				ExclusiveStartKey: continuationKey,
 				Limit:             aws.Int32(pageSize),
 			}
+			log.Printf("Retrieving from %s...", *tableName)
 			response, err := client.Scan(context.Background(), req)
 			if err != nil {
+				log.Printf("ERROR %s", err)
 				errCh <- err
 				close(outputCh)
 				return
 			}
+			log.Printf("DEBUG Got page of %d items from %s", len(response.Items), *tableName)
 			for _, item := range response.Items {
 				event, marshalErr := EndpointEventFromDynamo((*common.RawDynamoRecord)(&item))
 				if marshalErr != nil {
+					log.Printf("ERROR %s", marshalErr)
 					errCh <- err
 					close(outputCh)
 					return

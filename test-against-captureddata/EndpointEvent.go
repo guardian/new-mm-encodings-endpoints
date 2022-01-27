@@ -7,6 +7,7 @@ import (
 	"github.com/guardian/new-encodings-endpoints/common"
 	"log"
 	"reflect"
+	"regexp"
 	"strconv"
 	"time"
 )
@@ -16,7 +17,7 @@ type EndpointEvent struct {
 	Timestamp             *time.Time
 	AccessUrl             string
 	ExpectedOutputMessage string
-	ExpectedOutputHeaders []string
+	ExpectedOutputHeaders map[string]string
 	ExpectedResponse      int16
 }
 
@@ -25,7 +26,11 @@ IsValid will return `true` if the EndpointEvent has data that looks right
 */
 func (e *EndpointEvent) IsValid() bool {
 	emptyUid := uuid.UUID{}
-	return e.Uid != emptyUid && e.Timestamp != nil && e.AccessUrl != "" && len(e.ExpectedOutputHeaders) > 0 && e.ExpectedResponse >= 200
+	return e.Uid != emptyUid && e.Timestamp != nil && e.AccessUrl != "" && e.ExpectedResponse >= 200
+}
+
+func (e *EndpointEvent) FormattedTimestamp() string {
+	return e.Timestamp.Format(time.RFC3339)
 }
 
 func getStringValue(d types.AttributeValue) (string, error) {
@@ -60,6 +65,8 @@ func getTimeValue(d types.AttributeValue) (*time.Time, error) {
 	}
 	return &t, nil
 }
+
+var HeaderSplit = regexp.MustCompile("^([^:]+):\\s*(.*)$")
 
 func EndpointEventFromDynamo(rec *common.RawDynamoRecord) (*EndpointEvent, error) {
 	evt := &EndpointEvent{}
@@ -100,16 +107,17 @@ func EndpointEventFromDynamo(rec *common.RawDynamoRecord) (*EndpointEvent, error
 	if h, haveHeaders := (*rec)["php_headers"]; haveHeaders {
 		vals, isList := h.(*types.AttributeValueMemberL)
 		if isList {
-			stringValues := make([]string, len(vals.Value))
+			evt.ExpectedOutputHeaders = make(map[string]string, len(vals.Value))
 			n := 0
 			for _, v := range vals.Value {
 				if s, isString := v.(*types.AttributeValueMemberS); isString {
-					stringValues[n] = s.Value
-					n++
+					matches := HeaderSplit.FindAllStringSubmatch(s.Value, -1)
+					if matches != nil {
+						n++
+						evt.ExpectedOutputHeaders[matches[0][1]] = matches[0][2]
+					}
 				}
 			}
-
-			evt.ExpectedOutputHeaders = stringValues
 		} else {
 			log.Printf("ERROR Invalid EndpointEvent: `php_headers` is not a List, got %s", reflect.TypeOf(h))
 		}
