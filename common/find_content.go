@@ -196,6 +196,8 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 
 	if len(contentToFilter) > 0 {
 		filteredContent := ContentFilter(contentToFilter, format, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
+		_, allowInsecure := (*queryStringParams)["allow_insecure"]
+		filteredContent.Url = ForceHTTPS(filteredContent.Url, allowInsecure)
 		return filteredContent, nil
 	} else {
 		return nil, MakeResponse(404, GenericErrorBody("No encodings matching your request"))
