@@ -52,7 +52,7 @@ func TestEncoding(encoding *Encoding, format string, need_mobile bool, minbitrat
 }
 
 /*
-ContentFilter Output a filtered array of pointers to Encoding based on the other arguments
+ContentFilter Output a pointer to a ContentResult object after filtering an array of pointers to Encoding based on the other arguments
 Arguments:
 - encodings - An array of pointers to Encoding
 - format - The required format
@@ -64,7 +64,7 @@ Arguments:
 - minwidth - The minimum required frame width
 - maxwidth - The maximum required frame width
 Returns:
-- Array of pointers to Encoding
+- ContentResult object populated with the best pointer to an Encoding
 */
 func ContentFilter(encodings []*Encoding, format string, need_mobile bool, minbitrate int32, maxbitrate int32, minheight int32, maxheight int32, minwidth int32, maxwidth int32) *ContentResult {
 	var encodingsToReturn []*Encoding
