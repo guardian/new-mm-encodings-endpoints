@@ -146,14 +146,15 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		log.Printf("INFO Got record %v", *c)
 	}
 
-	var dataOverrides = map[string]string{}
-	var format = ""
+	var filenameOverride string
+	var format string
 	if val, ok := (*queryStringParams)["format"]; ok {
-		dataOverrides = HasDodgyM3U8Format((*queryStringParams)["format"])
-		if _, okay := dataOverrides["format"]; okay {
-			format = dataOverrides["format"]
+		var needOverride bool
+		filenameOverride, needOverride = HasDodgyM3U8Format(val)
+		if needOverride {
+			format = "video/m3u8" //in this case, the last part of the URL got overwritten by a filepath by dodgy iOS implementation. So we hard-fix it here.
 		} else {
-			format = val
+			format = val //the format part was not messed around so just use it
 		}
 	}
 
@@ -210,17 +211,11 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		} else {
 			log.Printf("WARNING GeneratePosterImageURL could not generate poster image URL for: %s, error: %s", filteredContent.Url, possiblePosterImageError)
 		}
-		if _, okay := dataOverrides["format"]; okay {
-			filteredContent.RealMimeName = dataOverrides["format"]
-		} else {
-			if _, ok := (*queryStringParams)["format"]; ok {
-				filteredContent.RealMimeName = (*queryStringParams)["format"]
-			}
-		}
-		if _, okay := dataOverrides["filename"]; okay {
-			var re = regexp.MustCompile(`\/[^\/]+$`)
-			outputURL := re.ReplaceAllString(filteredContent.Url, "/"+dataOverrides["filename"])
-			filteredContent.Url = outputURL
+
+		filteredContent.RealMimeName = format //normally this is the format that was requested but it can be messed up by iOS
+		if filenameOverride != "" {           //we have a malformed request from iOS and must work around it
+			endOfURL := regexp.MustCompile(`/[^/]+$`)
+			filteredContent.Url = endOfURL.ReplaceAllString(filteredContent.Url, "/"+filenameOverride)
 		}
 		return filteredContent, nil
 	} else {
