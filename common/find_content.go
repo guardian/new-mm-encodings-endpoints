@@ -146,9 +146,15 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		log.Printf("INFO Got record %v", *c)
 	}
 
+	var dataOverrides = map[string]string{}
 	var format = ""
 	if val, ok := (*queryStringParams)["format"]; ok {
-		format = val
+		dataOverrides = HasDodgyM3U8Format((*queryStringParams)["format"])
+		if _, okay := dataOverrides["format"]; okay {
+			format = dataOverrides["format"]
+		} else {
+			format = val
+		}
 	}
 
 	var need_mobile = false
@@ -203,6 +209,18 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 			filteredContent.PosterURL = generatedPosterImageURL
 		} else {
 			log.Printf("WARNING GeneratePosterImageURL could not generate poster image URL for: %s, error: %s", filteredContent.Url, possiblePosterImageError)
+		}
+		if _, okay := dataOverrides["format"]; okay {
+			filteredContent.RealMimeName = dataOverrides["format"]
+		} else {
+			if _, ok := (*queryStringParams)["format"]; ok {
+				filteredContent.RealMimeName = (*queryStringParams)["format"]
+			}
+		}
+		if _, okay := dataOverrides["filename"]; okay {
+			var re = regexp.MustCompile(`\/[^\/]+$`)
+			outputURL := re.ReplaceAllString(filteredContent.Url, "/"+dataOverrides["filename"])
+			filteredContent.Url = outputURL
 		}
 		return filteredContent, nil
 	} else {
