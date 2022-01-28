@@ -202,7 +202,7 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		if possiblePosterImageError == nil {
 			filteredContent.PosterURL = generatedPosterImageURL
 		} else {
-			log.Printf("WARNING GeneratePosterImageURL could not generate poster image URL for: %s", filteredContent.Url)
+			log.Printf("WARNING GeneratePosterImageURL could not generate poster image URL for: %s, error: %s", filteredContent.Url, possiblePosterImageError)
 		}
 		return filteredContent, nil
 	} else {

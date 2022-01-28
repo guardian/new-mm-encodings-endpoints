@@ -20,7 +20,6 @@ Tests an error is returned if the URL can not be parsed
 func TestGeneratePosterImageURLError(t *testing.T) {
 	_, err := GeneratePosterImageURL("test")
 	if err == nil {
-		t.Error(err)
-		t.FailNow()
+		t.Error("GeneratePosterImageURL returned no error for an invalid URL")
 	}
 }
