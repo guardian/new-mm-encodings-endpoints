@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"sync"
 )
 
 var UrlMatcher = regexp.MustCompile(`^(https?)://[^/]+/(.*)$`)
@@ -74,35 +75,40 @@ func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (bo
 	return success, nil
 }
 
-func AsyncTestEndpoint(inputCh chan *EndpointEvent, endpointBase *string) chan error {
-	errCh := make(chan error, 1)
-
+func testProcessingThread(inputCh chan *EndpointEvent, endpointBase *string, wg *sync.WaitGroup) {
 	successCount := 0
 	totalCount := 0
-	go func() {
-		httpClient := &http.Client{
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
-		}
-		for {
-			evt, haveMore := <-inputCh
-			if !haveMore {
-				log.Printf("AsyncTestEndpoint: reached end of data")
-				errCh <- nil
-				return
-			}
 
-			result, err := Test(httpClient, endpointBase, evt)
-			if err != nil {
-				log.Printf("ERROR Could not perform test for %s at %s: %s", evt.AccessUrl, evt.FormattedTimestamp(), err)
-			}
-			totalCount++
-			if result {
-				successCount++
-			}
-			log.Printf("INFO Running total %d / %d tests successful", successCount, totalCount)
+	httpClient := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	for {
+		evt, haveMore := <-inputCh
+		if !haveMore {
+			log.Printf("AsyncTestEndpoint: reached end of data")
+			errCh <- nil
+			return
 		}
-	}()
-	return errCh
+
+		result, err := Test(httpClient, endpointBase, evt)
+		if err != nil {
+			log.Printf("ERROR Could not perform test for %s at %s: %s", evt.AccessUrl, evt.FormattedTimestamp(), err)
+		}
+		totalCount++
+		if result {
+			successCount++
+		}
+		log.Printf("INFO Running total %d / %d tests successful", successCount, totalCount)
+	}
+}
+func AsyncTestEndpoint(inputCh chan *EndpointEvent, endpointBase *string, parallel int) (chan TestOutput, chan error) {
+	outputCh := make(chan TestOutput, 100)
+	errCh := make(chan error, 1)
+
+	waitGroup := &sync.WaitGroup{}
+	waitGroup.Add(parallel)
+
+	return outputCh, errCh
 }
