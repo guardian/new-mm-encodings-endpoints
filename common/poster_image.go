@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"regexp"
 )
 
@@ -11,8 +12,11 @@ Arguments:
 Returns:
 - URL of the poster image
 */
-func GeneratePosterImageURL(url string) string {
+func GeneratePosterImageURL(url string) (string, error) {
 	var re = regexp.MustCompile(`^(.*)\.[^\.]+$`)
 	matches := re.FindStringSubmatch(url)
-	return matches[1] + "_poster.jpg"
+	if matches == nil {
+		return "", errors.New("the CDN URL was malformed")
+	}
+	return matches[1] + "_poster.jpg", nil
 }
