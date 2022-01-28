@@ -507,7 +507,7 @@ func TestFindContentM3U8(t *testing.T) {
 			&Encoding{
 				EncodingId:  123,
 				ContentId:   111,
-				Url:         "https://endpoint.yadayada.com/interactivevideos/video.php?format=video/test.m3u8",
+				Url:         "https://some.cdn/test.m3u8",
 				Format:      "video/m3u8",
 				Mobile:      false,
 				Multirate:   false,
@@ -533,7 +533,7 @@ func TestFindContentM3U8(t *testing.T) {
 	}
 
 	content, _ := FindContent(context.Background(), &fakeParams, ops, config)
-	if content.Url != "https://endpoint.yadayada.com/interactivevideos/video.php?format=video/somefilename.m3u8" {
+	if content.Url != "https://some.cdn/somefilename.m3u8" {
 		t.Errorf("Unexpected output: %s", content.Url)
 	}
 }
