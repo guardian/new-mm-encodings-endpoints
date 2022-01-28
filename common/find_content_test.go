@@ -100,7 +100,7 @@ func TestFindContentValidFilename(t *testing.T) {
 			&Encoding{
 				EncodingId:  123,
 				ContentId:   111,
-				Url:         "https://url/to/content",
+				Url:         "http://url/to/content",
 				Format:      "mp4",
 				Mobile:      false,
 				Multirate:   false,
@@ -152,6 +152,9 @@ func TestFindContentValidFilename(t *testing.T) {
 	}
 	if ops.IdMappingSearchTermQueried != "mygreatvideo" {
 		t.Errorf("FindContent queried ID mappings on the wrong term, got %s", ops.IdMappingSearchTermQueried)
+	}
+	if content.Url != "https://url/to/content" {
+		t.Error("FindContent returned a URL not starting with https")
 	}
 }
 
@@ -429,5 +432,55 @@ func TestFindContentFallback(t *testing.T) {
 	}
 	if ops.IdMappingSearchTermQueried != int64(123456) {
 		t.Errorf("FindContent queried ID mappings on the wrong term, got %d", ops.IdMappingSearchTermQueried)
+	}
+}
+
+/*
+FindContent should return a URL starting with http: if allow_insecure is set
+*/
+func TestFindContentAllowInsecure(t *testing.T) {
+	fakeParams := map[string]string{"file": "mygreatvideo", "allow_insecure": "true"}
+	tim, _ := time.Parse(time.RFC3339, time.RFC3339)
+	ops := &DynamoOpsMock{
+		IdMappingResult: IdMappingRecord{
+			contentId:  2222,
+			filebase:   "mygreatvideo",
+			project:    nil,
+			lastupdate: tim,
+			octopus_id: nil,
+		},
+		FCSIdForContentIdResults: &[]string{"KP-12345", "KP-12346", "KP-12347"},
+		EncodingsForFCSIdResults: []*Encoding{
+			&Encoding{
+				EncodingId:  123,
+				ContentId:   111,
+				Url:         "http://url/to/content",
+				Format:      "mp4",
+				Mobile:      false,
+				Multirate:   false,
+				VCodec:      "h264",
+				ACodec:      "aac",
+				VBitrate:    12345,
+				ABitrate:    128,
+				LastUpdate:  tim,
+				FrameWidth:  1280,
+				FrameHeight: 720,
+				Duration:    123.456,
+				FileSize:    98765432,
+				FCSID:       "KP-12345",
+				OctopusId:   34567,
+				Aspect:      "16:9",
+			},
+		},
+	}
+
+	config := &ConfigMock{
+		IdMappingTableVal: "id-mapping-table",
+		EncodingsTableVal: "encodings-table",
+	}
+
+	content, _ := FindContent(context.Background(), &fakeParams, ops, config)
+	if content.Url != "http://url/to/content" {
+		t.Error("FindContent returned a URL not starting with http:")
 	}
 }

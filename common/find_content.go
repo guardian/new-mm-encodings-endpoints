@@ -196,10 +196,7 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 
 	if len(contentToFilter) > 0 {
 		filteredContent := ContentFilter(contentToFilter, format, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
-		var allowInsecure = false
-		if _, ok := (*queryStringParams)["allow_insecure"]; ok {
-			allowInsecure = true
-		}
+		_, allowInsecure := (*queryStringParams)["allow_insecure"]
 		filteredContent.Url = ForceHTTPS(filteredContent.Url, allowInsecure)
 		return filteredContent, nil
 	} else {
