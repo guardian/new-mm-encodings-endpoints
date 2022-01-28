@@ -100,7 +100,7 @@ func TestFindContentValidFilename(t *testing.T) {
 			&Encoding{
 				EncodingId:  123,
 				ContentId:   111,
-				Url:         "http://url/to/content",
+				Url:         "http://url/to/content.mp4",
 				Format:      "mp4",
 				Mobile:      false,
 				Multirate:   false,
@@ -153,8 +153,11 @@ func TestFindContentValidFilename(t *testing.T) {
 	if ops.IdMappingSearchTermQueried != "mygreatvideo" {
 		t.Errorf("FindContent queried ID mappings on the wrong term, got %s", ops.IdMappingSearchTermQueried)
 	}
-	if content.Url != "https://url/to/content" {
+	if content.Url != "https://url/to/content.mp4" {
 		t.Error("FindContent returned a URL not starting with https")
+	}
+	if content.PosterURL != "https://url/to/content_poster.jpg" {
+		t.Error("FindContent returned an incorrect PosterURL")
 	}
 }
 
