@@ -40,11 +40,7 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 		}
 	}
 
-	if foundContent.Url != "" {
-		return common.MakeResponseRaw(200, &foundContent.Url, "text/plain"), nil
-	}
-
-	return common.MakeResponseRaw(404, aws.String("No content found.\n"), "text/plain"), nil
+	return common.MakeResponseRaw(200, &foundContent.Url, "text/plain"), nil
 }
 
 func main() {
