@@ -303,9 +303,9 @@ Resources:
     Properties:
       RestApiId: !ImportValue
         'Fn::Sub': ${APIGatewayStack}-RestAPI
-      PathPart: reference
+      PathPart: reference.php
       ParentId: !ImportValue
-        'Fn::Sub': ${APIGatewayStack}-RestAPIRoot
+        'Fn::Sub': ${APIGatewayStack}-InteractiveVidsBase
   ReferenceAPIEndpoint: #this creates the entry in the Rest API for the GET handler
     Type: AWS::ApiGateway::Method
     DependsOn:
