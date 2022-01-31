@@ -3,11 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 	"sync"
+	"time"
 )
 
 var UrlMatcher = regexp.MustCompile(`^(https?)://[^/]+/(.*)$`)
@@ -21,25 +24,25 @@ func makeTargetUrl(endpointBase *string, evt *EndpointEvent) (string, error) {
 	return newUrl, nil
 }
 
-func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (bool, error) {
+func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*EndpointEvent, bool, error) {
 	targetUrl, err := makeTargetUrl(endpointBase, evt)
 	if err != nil {
-		return false, err
+		return nil, false, err
 	}
 	rq, err := http.NewRequest("GET", targetUrl, nil)
 	if err != nil {
-		return false, err
+		return nil, false, err
 	}
 
 	response, err := httpClient.Do(rq)
 	if err != nil {
-		return false, err
+		return nil, false, err
 	}
 	defer response.Body.Close()
 
 	content, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return false, err
+		return nil, false, err
 	}
 
 	success := true
@@ -72,10 +75,25 @@ func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (bo
 			success = false
 		}
 	}
-	return success, nil
+
+	reformattedHeaders := make(map[string]string, len(response.Header))
+	for k, values := range response.Header {
+		reformattedHeaders[k] = strings.Join(values, ";")
+	}
+
+	ts := time.Now()
+	responseEvt := &EndpointEvent{
+		Uid:                   uuid.UUID{},
+		Timestamp:             &ts,
+		AccessUrl:             targetUrl,
+		ExpectedOutputMessage: string(content),
+		ExpectedOutputHeaders: reformattedHeaders,
+		ExpectedResponse:      int16(response.StatusCode),
+	}
+	return responseEvt, success, nil
 }
 
-func testProcessingThread(inputCh chan *EndpointEvent, endpointBase *string, wg *sync.WaitGroup) {
+func testProcessingThread(inputCh chan *EndpointEvent, outputCh chan TestOutput, endpointBase *string, wg *sync.WaitGroup) {
 	successCount := 0
 	totalCount := 0
 
@@ -88,27 +106,42 @@ func testProcessingThread(inputCh chan *EndpointEvent, endpointBase *string, wg 
 		evt, haveMore := <-inputCh
 		if !haveMore {
 			log.Printf("AsyncTestEndpoint: reached end of data")
-			errCh <- nil
+			wg.Done()
 			return
 		}
 
-		result, err := Test(httpClient, endpointBase, evt)
+		responseEvent, result, err := Test(httpClient, endpointBase, evt)
 		if err != nil {
 			log.Printf("ERROR Could not perform test for %s at %s: %s", evt.AccessUrl, evt.FormattedTimestamp(), err)
 		}
 		totalCount++
 		if result {
 			successCount++
+		} else {
+			rec := TestOutput{
+				Request: evt,
+				Result:  responseEvent,
+			}
+			outputCh <- rec
 		}
 		log.Printf("INFO Running total %d / %d tests successful", successCount, totalCount)
 	}
 }
-func AsyncTestEndpoint(inputCh chan *EndpointEvent, endpointBase *string, parallel int) (chan TestOutput, chan error) {
+
+func AsyncTestEndpoint(inputCh chan *EndpointEvent, endpointBase *string, parallel int) (chan TestOutput, *sync.WaitGroup) {
 	outputCh := make(chan TestOutput, 100)
-	errCh := make(chan error, 1)
 
 	waitGroup := &sync.WaitGroup{}
 	waitGroup.Add(parallel)
 
-	return outputCh, errCh
+	for i := 0; i < parallel; i++ {
+		go testProcessingThread(inputCh, outputCh, endpointBase, waitGroup)
+	}
+
+	go func() {
+		waitGroup.Wait()
+		close(outputCh)
+	}()
+
+	return outputCh, waitGroup
 }

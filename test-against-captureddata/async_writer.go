@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 )
 
 type TestOutput struct {
@@ -20,8 +21,9 @@ func (t *TestOutput) toCSV() *[]string {
 	requestHeaders, _ := json.Marshal(&t.Request.ExpectedOutputHeaders)
 	resultHeaders, _ := json.Marshal(&t.Result.ExpectedOutputHeaders)
 
+	log.Printf("DEBUG AsyncWriter got record for %s", t.Request.AccessUrl)
 	return &[]string{
-		t.Request.AccessUrl,
+		path.Base(t.Request.AccessUrl),
 		fmt.Sprintf("%d", t.Request.ExpectedResponse),
 		fmt.Sprintf("%d", t.Result.ExpectedResponse),
 		t.Request.ExpectedOutputMessage,
@@ -48,12 +50,15 @@ func AsyncWriter(inputCh chan TestOutput, filename string) chan error {
 		writer := csv.NewWriter(f)
 		defer writer.Flush()
 
+		writer.Write([]string{"Request URL", "Expected status", "Actual status", "Expected output", "Actual output", "Expected headers", "Actual headers"})
 		n := 0
 		for {
 			n++
 			evt, moreEvents := <-inputCh
 
 			err := writer.Write(*evt.toCSV())
+			writer.Flush()
+
 			if err != nil {
 				log.Printf("ERROR Could not write CSV record %d: %s", n, err)
 				errCh <- err
