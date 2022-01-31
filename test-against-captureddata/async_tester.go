@@ -24,6 +24,17 @@ func makeTargetUrl(endpointBase *string, evt *EndpointEvent) (string, error) {
 	return newUrl, nil
 }
 
+var IrrelevantHeaders = []string{"X-Powered-By"}
+
+func isHeaderIrrelevant(key string) bool {
+	for _, hdr := range IrrelevantHeaders {
+		if hdr == key {
+			return true
+		}
+	}
+	return false
+}
+
 func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*EndpointEvent, bool, error) {
 	targetUrl, err := makeTargetUrl(endpointBase, evt)
 	if err != nil {
@@ -47,17 +58,17 @@ func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*E
 
 	success := true
 	if response.StatusCode != int(evt.ExpectedResponse) {
-		log.Printf("INFO Request %s from %s expected response %d got %d", evt.AccessUrl, evt.FormattedTimestamp(), evt.ExpectedResponse, response.StatusCode)
+		log.Printf("INFO Request %s from %s expected response %d got %d", targetUrl, evt.FormattedTimestamp(), evt.ExpectedResponse, response.StatusCode)
 		success = false
 	}
 	if string(content) != evt.ExpectedOutputMessage {
-		log.Printf("INFO Request %s from %s expected body %s got %s", evt.AccessUrl, evt.FormattedTimestamp(), evt.ExpectedOutputMessage, string(content))
+		log.Printf("INFO Request %s from %s expected body %s got %s", targetUrl, evt.FormattedTimestamp(), evt.ExpectedOutputMessage, string(content))
 		success = false
 	}
 	for k, v := range response.Header {
 		if headerVal, haveHeader := evt.ExpectedOutputHeaders[k]; haveHeader {
 			if headerVal != v[0] {
-				log.Printf("INFO Request %s from %s header %s got value %s expected %s", evt.AccessUrl, evt.FormattedTimestamp(), k, v[0], headerVal)
+				log.Printf("INFO Request %s from %s header %s got value %s expected %s", targetUrl, evt.FormattedTimestamp(), k, v[0], headerVal)
 				success = false
 			}
 		} else {
@@ -65,14 +76,20 @@ func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*E
 		}
 	}
 	for k, v := range evt.ExpectedOutputHeaders {
+		if k == "Content-type" {
+			k = "Content-Type"
+		}
+
 		if headerVal, haveHeader := response.Header[k]; haveHeader {
 			if headerVal[0] != v {
-				log.Printf("INFO Request %s from %s header %s got value %s expected %s", evt.AccessUrl, evt.FormattedTimestamp(), k, v[0], headerVal)
+				log.Printf("INFO Request %s from %s header %s got value %s expected %s", targetUrl, evt.FormattedTimestamp(), k, headerVal, v)
 				success = false
 			}
 		} else {
-			log.Printf("INFO Request %s from %s response was missing header %s", evt.AccessUrl, evt.FormattedTimestamp(), k)
-			success = false
+			if !isHeaderIrrelevant(k) {
+				log.Printf("INFO Request %s from %s response was missing header %s", targetUrl, evt.FormattedTimestamp(), k)
+				success = false
+			}
 		}
 	}
 

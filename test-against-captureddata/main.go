@@ -14,6 +14,7 @@ func main() {
 	endpointBase := flag.String("target", "", "server name to test")
 	parallel := flag.Int("parallel", 10, "number of requests to run in parallel")
 	outputFilename := flag.String("out", "endpoint-test-results.csv", "name of a CSV file to output")
+	filter := flag.String("filter", "", "if set, limit to only this endpoint")
 	flag.Parse()
 
 	cfg, err := config.LoadDefaultConfig(context.Background())
@@ -22,7 +23,7 @@ func main() {
 	}
 	ddbClient := dynamodb.NewFromConfig(cfg)
 
-	eventCh, errCh := AsyncRecordReader(ddbClient, tableName, int32(*pageSize))
+	eventCh, errCh := AsyncRecordReader(ddbClient, tableName, *filter, int32(*pageSize))
 	//time.Sleep(1*time.Second)
 	resultsCh, waitGroup := AsyncTestEndpoint(eventCh, endpointBase, *parallel)
 

@@ -7,9 +7,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/guardian/new-encodings-endpoints/common"
 	"log"
+	"strings"
 )
 
-func AsyncRecordReader(client *dynamodb.Client, tableName *string, pageSize int32) (chan *EndpointEvent, chan error) {
+func AsyncRecordReader(client *dynamodb.Client, tableName *string, limitToEndpoint string, pageSize int32) (chan *EndpointEvent, chan error) {
 	outputCh := make(chan *EndpointEvent, pageSize*2)
 	errCh := make(chan error, 1)
 
@@ -38,7 +39,13 @@ func AsyncRecordReader(client *dynamodb.Client, tableName *string, pageSize int3
 					close(outputCh)
 					return
 				}
-				outputCh <- event
+				if limitToEndpoint != "" {
+					if strings.Contains(event.AccessUrl, limitToEndpoint) {
+						outputCh <- event
+					}
+				} else {
+					outputCh <- event
+				}
 			}
 			if response.LastEvaluatedKey == nil {
 				break //docs say that LastEvaluatedKey is blank when we get to the end
