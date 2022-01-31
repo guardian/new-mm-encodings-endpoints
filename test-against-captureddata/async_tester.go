@@ -35,7 +35,7 @@ func isHeaderIrrelevant(key string) bool {
 	return false
 }
 
-func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*EndpointEvent, bool, error) {
+func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*TestOutput, bool, error) {
 	targetUrl, err := makeTargetUrl(endpointBase, evt)
 	if err != nil {
 		return nil, false, err
@@ -56,19 +56,26 @@ func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*E
 		return nil, false, err
 	}
 
+	errorList := ""
 	success := true
 	if response.StatusCode != int(evt.ExpectedResponse) {
-		log.Printf("INFO Request %s from %s expected response %d got %d", targetUrl, evt.FormattedTimestamp(), evt.ExpectedResponse, response.StatusCode)
+		prob := fmt.Sprintf("expected response %d got %d", evt.ExpectedResponse, response.StatusCode)
+		errorList += prob + "\n"
+		log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
 		success = false
 	}
 	if string(content) != evt.ExpectedOutputMessage {
-		log.Printf("INFO Request %s from %s expected body %s got %s", targetUrl, evt.FormattedTimestamp(), evt.ExpectedOutputMessage, string(content))
+		prob := fmt.Sprintf("expected body %s got %s", evt.ExpectedOutputMessage, string(content))
+		errorList += prob + "\n"
+		log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
 		success = false
 	}
 	for k, v := range response.Header {
 		if headerVal, haveHeader := evt.ExpectedOutputHeaders[k]; haveHeader {
 			if headerVal != v[0] {
-				log.Printf("INFO Request %s from %s header %s got value %s expected %s", targetUrl, evt.FormattedTimestamp(), k, v[0], headerVal)
+				prob := fmt.Sprintf("header %s got value %s expected %s", k, v[0], headerVal)
+				errorList += prob + "\n"
+				log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
 				success = false
 			}
 		} else {
@@ -85,12 +92,16 @@ func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*E
 				v = "text/plain;charset=UTF-8"
 			}
 			if headerVal[0] != v {
-				log.Printf("INFO Request %s from %s header %s got value %s expected %s", targetUrl, evt.FormattedTimestamp(), k, headerVal, v)
+				prob := fmt.Sprintf("header %s got value %s expected %s", k, headerVal, v)
+				errorList += prob + "\n"
+				log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
 				success = false
 			}
 		} else {
 			if !isHeaderIrrelevant(k) {
-				log.Printf("INFO Request %s from %s response was missing header %s", targetUrl, evt.FormattedTimestamp(), k)
+				prob := fmt.Sprintf("response was missing header %s", k)
+				errorList += prob + "\n"
+				log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
 				success = false
 			}
 		}
@@ -110,7 +121,12 @@ func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*E
 		ExpectedOutputHeaders: reformattedHeaders,
 		ExpectedResponse:      int16(response.StatusCode),
 	}
-	return responseEvt, success, nil
+	out := &TestOutput{
+		Request:   evt,
+		Result:    responseEvt,
+		ErrorList: errorList,
+	}
+	return out, success, nil
 }
 
 func testProcessingThread(inputCh chan *EndpointEvent, outputCh chan TestOutput, endpointBase *string, wg *sync.WaitGroup) {
@@ -138,11 +154,7 @@ func testProcessingThread(inputCh chan *EndpointEvent, outputCh chan TestOutput,
 		if result {
 			successCount++
 		} else {
-			rec := TestOutput{
-				Request: evt,
-				Result:  responseEvent,
-			}
-			outputCh <- rec
+			outputCh <- *responseEvent
 		}
 		log.Printf("INFO Running total %d / %d tests successful", successCount, totalCount)
 	}

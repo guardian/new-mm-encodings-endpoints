@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 )
 
 type TestOutput struct {
-	Request *EndpointEvent
-	Result  *EndpointEvent
+	Request   *EndpointEvent
+	Result    *EndpointEvent
+	ErrorList string //newline-separated list of problems detected
 }
 
 /*
@@ -23,7 +23,8 @@ func (t *TestOutput) toCSV() *[]string {
 
 	log.Printf("DEBUG AsyncWriter got record for %s", t.Request.AccessUrl)
 	return &[]string{
-		path.Base(t.Request.AccessUrl),
+		t.Result.AccessUrl,
+		t.ErrorList,
 		fmt.Sprintf("%d", t.Request.ExpectedResponse),
 		fmt.Sprintf("%d", t.Result.ExpectedResponse),
 		t.Request.ExpectedOutputMessage,
@@ -50,7 +51,7 @@ func AsyncWriter(inputCh chan TestOutput, filename string) chan error {
 		writer := csv.NewWriter(f)
 		defer writer.Flush()
 
-		writer.Write([]string{"Request URL", "Expected status", "Actual status", "Expected output", "Actual output", "Expected headers", "Actual headers"})
+		writer.Write([]string{"Request URL", "Test result", "Expected status", "Actual status", "Expected output", "Actual output", "Expected headers", "Actual headers"})
 		n := 0
 		for {
 			n++
