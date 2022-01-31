@@ -1,15 +1,19 @@
-.PHONY: referenceapi upload clean deploy migration
+.PHONY: referenceapi genericoptions upload clean deploy migration
 
-all: referenceapi migration
+all: referenceapi genericoptions migration
 
 referenceapi:
 	make -C referenceapi/
 
 upload:
 	make -C referenceapi/ upload
+	make -C genericoptions/ upload
 
 migration:
 	make -C migration/
+
+genericoptions:
+	make -C genericoptions/
 
 test:
 	go test ./...
@@ -24,6 +28,8 @@ clean:
 	rm -f cover.out
 	make -C migration/ clean
 	make -C referenceapi/ clean
+	make -C genericoptions/ clean
 
 deploy:
 	make -C referenceapi/ deploy
+	make -C genericoptions/ deploy

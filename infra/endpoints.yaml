@@ -153,6 +153,7 @@ Resources:
               - Action: lambda:InvokeFunction
                 Resource:
                   - !Sub ${ReferenceAPI.Arn}:*
+                  - !Sub ${GenericOptions.Arn}:*
                 Effect: Allow
 
   ##common access policy used by the endpoints
@@ -177,6 +178,66 @@ Resources:
               - !Sub ${MimeEquivalentsTable.Arn}/index/*
               - !GetAtt PosterFramesTable.Arn
               - !Sub ${PosterFramesTable.Arn}/index/*
+
+  ##`genericoptions` endpoint setup
+  GenericOptionsRole: #this describes the access permissions that the lambda function has when executing
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+        - !Ref EndpointsAccessPolicy
+
+  GenericOptions: #this describes the lambda function used to generate the API response
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${App}-GenericOptions
+      Description: Returns generic preflight CORS headers for multimedia encodings
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub "${App}/${Stack}/${InitialVersionId}/genericoptions.zip"
+      Handler: genericoptions
+      Runtime: go1.x
+      MemorySize: 128
+      Environment:
+        Variables:
+          ID_MAPPING_TABLE: !Ref IdMappingTable
+          ENCODINGS_TABLE: !Ref EncodingsTable
+          MIME_EQUIVALENTS_TABLE: !Ref MimeEquivalentsTable
+          POSTER_FRAMES_TABLE: !Ref PosterFramesTable
+      Role: !GetAtt GenericOptionsRole.Arn
+      Timeout: 5
+  GenericOptionsCodeAlias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      Description: Staging deployment for the media-reference API
+      FunctionName: !Ref GenericOptions
+      FunctionVersion: "$LATEST"  #this is overriden in the deploy processes
+      Name: CODE
+
+  GenericOptionsProdAlias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      Description: Staging deployment for the media-reference API
+      FunctionName: !Ref GenericOptions
+      FunctionVersion: "$LATEST"  #this is overriden in the deploy processes
+      Name: PROD
+
+  GenericOptionsPermissions: #this describes the permissions that allow the lambda function to be called
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - GenericOptions
+    Properties:
+      Action: lambda:Invoke
+      FunctionName: !Ref GenericOptions
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:/*/OPTIONS/reference"
 
   ##`referenceapi` endpoint setup
   ReferenceAPIRole: #this describes the access permissions that the lambda function has when executing
@@ -245,7 +306,7 @@ Resources:
       PathPart: reference
       ParentId: !ImportValue
         'Fn::Sub': ${APIGatewayStack}-RestAPIRoot
-  ReferenceAPIEndpoint: #this creates the entry in the Rest API
+  ReferenceAPIEndpoint: #this creates the entry in the Rest API for the GET handler
     Type: AWS::ApiGateway::Method
     DependsOn:
       - ReferenceAPIResource
@@ -268,7 +329,29 @@ Resources:
         'Fn::Sub': ${APIGatewayStack}-RestAPI
       ResourceId: !Ref ReferenceAPIResource
       OperationName: operation
-
+  ReferenceAPIPreflight: #this creates the entry in the Rest API for the OPTIONS handler
+    Type: AWS::ApiGateway::Method
+    DependsOn:
+      - ReferenceAPIResource
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      Integration:
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses: [ ]
+        PassthroughBehavior: WHEN_NO_TEMPLATES
+        TimeoutInMillis: 5000
+        IntegrationHttpMethod: POST
+        Credentials: !GetAtt IAMAPIServiceRole.Arn
+        ContentHandling: CONVERT_TO_TEXT
+        Type: AWS_PROXY
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${GenericOptions}:${!stageVariables.stage}/invocations"
+      RestApiId: !ImportValue
+        'Fn::Sub': ${APIGatewayStack}-RestAPI
+      ResourceId: !Ref ReferenceAPIResource
+      OperationName: operation
   ##API Gateway CODE environment setup
   RestAPIStageCode:
     Type: AWS::ApiGateway::Stage
