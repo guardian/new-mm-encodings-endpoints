@@ -81,6 +81,9 @@ func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*E
 		}
 
 		if headerVal, haveHeader := response.Header[k]; haveHeader {
+			if v == "text/plain" { //fix for an irritation that some events were logged with "text/plain" and others with "text/plain;charset=UTF-8"
+				v = "text/plain;charset=UTF-8"
+			}
 			if headerVal[0] != v {
 				log.Printf("INFO Request %s from %s header %s got value %s expected %s", targetUrl, evt.FormattedTimestamp(), k, headerVal, v)
 				success = false
