@@ -203,21 +203,25 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 
 	if len(contentToFilter) > 0 {
 		filteredContent := ContentFilter(contentToFilter, format, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
-		_, allowInsecure := (*queryStringParams)["allow_insecure"]
-		filteredContent.Url = ForceHTTPS(filteredContent.Url, allowInsecure)
-		generatedPosterImageURL, possiblePosterImageError := GeneratePosterImageURL(filteredContent.Url)
-		if possiblePosterImageError == nil {
-			filteredContent.PosterURL = generatedPosterImageURL
-		} else {
-			log.Printf("WARNING GeneratePosterImageURL could not generate poster image URL for: %s, error: %s", filteredContent.Url, possiblePosterImageError)
-		}
+		if filteredContent != nil {
+			_, allowInsecure := (*queryStringParams)["allow_insecure"]
+			filteredContent.Url = ForceHTTPS(filteredContent.Url, allowInsecure)
+			generatedPosterImageURL, possiblePosterImageError := GeneratePosterImageURL(filteredContent.Url)
+			if possiblePosterImageError == nil {
+				filteredContent.PosterURL = generatedPosterImageURL
+			} else {
+				log.Printf("WARNING GeneratePosterImageURL could not generate poster image URL for: %s, error: %s", filteredContent.Url, possiblePosterImageError)
+			}
 
-		filteredContent.RealMimeName = format //normally this is the format that was requested but it can be messed up by iOS
-		if filenameOverride != "" {           //we have a malformed request from iOS and must work around it
-			endOfURL := regexp.MustCompile(`/[^/]+$`)
-			filteredContent.Url = endOfURL.ReplaceAllString(filteredContent.Url, "/"+filenameOverride)
+			filteredContent.RealMimeName = format //normally this is the format that was requested but it can be messed up by iOS
+			if filenameOverride != "" {           //we have a malformed request from iOS and must work around it
+				endOfURL := regexp.MustCompile(`/[^/]+$`)
+				filteredContent.Url = endOfURL.ReplaceAllString(filteredContent.Url, "/"+filenameOverride)
+			}
+			return filteredContent, nil
+		} else {
+			return nil, MakeResponseJson(404, GenericErrorBody("No encodings matching your request"))
 		}
-		return filteredContent, nil
 	} else {
 		return nil, MakeResponseJson(404, GenericErrorBody("No encodings matching your request"))
 	}

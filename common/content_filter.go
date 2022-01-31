@@ -74,5 +74,9 @@ func ContentFilter(encodings []*Encoding, format string, need_mobile bool, minbi
 		}
 	}
 
-	return &ContentResult{*encodingsToReturn[0], "", ""}
+	if len(encodingsToReturn) == 0 {
+		return nil
+	} else {
+		return &ContentResult{*encodingsToReturn[0], "", ""}
+	}
 }
