@@ -52,7 +52,12 @@ Resources:
                   - logs:GetLogEvents
                   - logs:FilterLogEvents
                 Resource: "*"
-
+  BaseResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestAPI
+      PathPart: interactivevideos
+      ParentId: !GetAtt RestAPI.RootResourceId
 
   ApiGatewayAccount:
     Type: AWS::ApiGateway::Account
@@ -70,6 +75,11 @@ Outputs:
     Value: !GetAtt RestAPI.RootResourceId
     Export:
       Name: !Sub ${AWS::StackName}-RestAPIRoot
+  InteractiveVideosBase:
+    Description: Base resource for InteractiveVideos
+    Value: !Ref BaseResource
+    Export:
+      Name: !Sub ${AWS::StackName}-InteractiveVidsBase
   GWAccount:
     Description: API Gateway Account
     Value: !Ref ApiGatewayAccount
