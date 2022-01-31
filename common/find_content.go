@@ -201,8 +201,8 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		maxwidth = int32(parseIntOutput)
 	}
 
-	if len(contentToFilter) > 0 {
-		filteredContent := ContentFilter(contentToFilter, format, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
+	filteredContent := ContentFilter(contentToFilter, format, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
+	if filteredContent != nil {
 		_, allowInsecure := (*queryStringParams)["allow_insecure"]
 		filteredContent.Url = ForceHTTPS(filteredContent.Url, allowInsecure)
 		generatedPosterImageURL, possiblePosterImageError := GeneratePosterImageURL(filteredContent.Url)
