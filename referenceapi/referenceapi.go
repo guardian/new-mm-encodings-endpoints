@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/guardian/new-encodings-endpoints/common"
 	"log"
 )
@@ -21,12 +22,29 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 
 	ops := common.NewDynamoDbOps(config)
 
-	_, errResponse := common.FindContent(ctx, &event.QueryStringParameters, ops, config)
+	foundContent, errResponse := common.FindContent(ctx, &event.QueryStringParameters, ops, config)
 	if errResponse != nil {
-		return errResponse, nil
+		switch errResponse.StatusCode {
+		case 404:
+			return common.MakeResponseRaw(404, aws.String("No content found.\n"), "text/plain"), nil
+		default:
+			return errResponse, nil
+		}
 	}
 
-	return common.MakeResponseJson(200, map[string]string{"status": "ok", "detail": "testing"}), nil
+	if _, ok := (event.QueryStringParameters)["poster"]; ok {
+		if foundContent.PosterURL != "" {
+			return common.MakeResponseRaw(200, &foundContent.PosterURL, "text/plain"), nil
+		} else {
+			return common.MakeResponseRaw(404, aws.String("No poster URL found"), "text/plain"), nil
+		}
+	}
+
+	if foundContent.Url != "" {
+		return common.MakeResponseRaw(200, &foundContent.Url, "text/plain"), nil
+	}
+
+	return common.MakeResponseRaw(404, aws.String("No content found.\n"), "text/plain"), nil
 }
 
 func main() {
