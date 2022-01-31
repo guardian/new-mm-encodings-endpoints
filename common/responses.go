@@ -26,7 +26,7 @@ func GenericErrorBody(msg string) map[string]string {
 }
 
 /*
-MakeResponse takes a JSON-serializable object and returns a pointer to an APIGatewayProxyResponse that can be
+MakeResponseJson takes a JSON-serializable object and returns a pointer to an APIGatewayProxyResponse that can be
 passed straight back to API Gateway.
 
 Arguments:
@@ -36,21 +36,53 @@ response body.  If the serialization fails for any reason then an error is logge
 Returns:
 - Pointer to an APIGatewayProxyResponse object
 */
-func MakeResponse(responseCode int, contentBody interface{}) *events.APIGatewayProxyResponse {
-	jsonBytes, marshalErr := json.Marshal(contentBody)
-	if marshalErr != nil {
-		log.Printf("ERROR MakeResponse could not marshal %v into json: %s", contentBody, marshalErr)
-		return MakeResponse(500, GenericErrorBody("invalid output content"))
-	} else {
-		contentLength := len(jsonBytes)
-		return &events.APIGatewayProxyResponse{
-			StatusCode: responseCode,
-			Headers: map[string]string{
-				"Content-Type":                "application/json",
-				"Content-Length":              fmt.Sprintf("%d", contentLength),
-				"Access-Control-Allow-Origin": "*",
-			},
-			Body: string(jsonBytes),
+func MakeResponseJson(responseCode int, contentBody interface{}) *events.APIGatewayProxyResponse {
+	var jsonBytes []byte
+	var stringContent string
+	if contentBody != nil {
+		var marshalErr error
+		jsonBytes, marshalErr = json.Marshal(contentBody)
+		if marshalErr != nil {
+			log.Printf("ERROR MakeResponseJson could not marshal %v into json: %s", contentBody, marshalErr)
+			return MakeResponseJson(500, GenericErrorBody("invalid output content"))
 		}
+		stringContent = string(jsonBytes)
+	} else {
+		stringContent = ""
+	}
+
+	return MakeResponseRaw(responseCode, &stringContent, "application/json")
+}
+
+/*
+MakeResponseRaw takes a string and uses it as the content body in a response. It returns a pointer to APIGatewayProxyResponse
+that can be passed directly back to the runtime.
+
+Arguments:
+
+- responseCode - HTTP status code
+
+- contentBodyString - the content body to use, or "" for an empty response
+
+- contentType - MIME type to indicate what the content is
+*/
+func MakeResponseRaw(responseCode int, contentBodyString *string, contentType string) *events.APIGatewayProxyResponse {
+	headers := map[string]string{
+		"Access-Control-Allow-Origin":      "*",
+		"Access-Control-Allow-Methods":     "GET, OPTIONS",
+		"Access-Control-Allow-Headers":     "*",
+		"Access-Control-Allow-Credentials": "false",
+		"Access-Control-Max-Age":           "3600",
+	}
+	contentLength := len(*contentBodyString)
+	if contentLength != 0 {
+		headers["Content-Type"] = contentType
+		headers["Content-Length"] = fmt.Sprintf("%d", contentLength)
+	}
+
+	return &events.APIGatewayProxyResponse{
+		StatusCode: responseCode,
+		Headers:    headers,
+		Body:       *contentBodyString,
 	}
 }

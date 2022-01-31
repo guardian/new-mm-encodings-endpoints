@@ -67,20 +67,20 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, ops
 			idMapping, err = ops.QueryIdMappings(ctx, IdMappingIndexFilebase, IdMappingKeyfieldFilebase, fn)
 			if err != nil {
 				log.Print("ERROR FindContent could not get id mapping: ", err)
-				return nil, MakeResponse(500, GenericErrorBody("Database error"))
+				return nil, MakeResponseJson(500, GenericErrorBody("Database error"))
 			}
 		} else {
-			return nil, MakeResponse(400, GenericErrorBody("Invalid filespec"))
+			return nil, MakeResponseJson(400, GenericErrorBody("Invalid filespec"))
 		}
 	} else if octId, haveOctId := (*queryStringParams)["octopusid"]; haveOctId {
 		if isOctIdValid(octId) {
 			octIdNum, _ := strconv.ParseInt(octId, 10, 64)
 			idMapping, err = ops.QueryIdMappings(ctx, IdMappingIndexOctid, IdMappingKeyfieldOctid, octIdNum)
 		} else {
-			return nil, MakeResponse(400, GenericErrorBody("Invalid octid"))
+			return nil, MakeResponseJson(400, GenericErrorBody("Invalid octid"))
 		}
 	} else {
-		return nil, MakeResponse(400, GenericErrorBody("No search"))
+		return nil, MakeResponseJson(400, GenericErrorBody("No search"))
 	}
 
 	return idMapping, nil
@@ -109,13 +109,13 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 	var contentToFilter []*Encoding
 	log.Printf("DEBUGGING got id mapping result %v", idMapping)
 	if idMapping == nil { //nothing in idmapping => does not exist
-		return nil, MakeResponse(404, GenericErrorBody("Content not found"))
+		return nil, MakeResponseJson(404, GenericErrorBody("Content not found"))
 	}
 	var err error
 
 	fcsId, err := getFCSId(ctx, ops, idMapping.contentId)
 	if err != nil {
-		return nil, MakeResponse(500, GenericErrorBody("Database error"))
+		return nil, MakeResponseJson(500, GenericErrorBody("Database error"))
 	}
 
 	if fcsId != nil {
@@ -123,7 +123,7 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		contentToFilter, err = ops.QueryEncodingsForFCSId(ctx, *fcsId)
 		if err != nil {
 			log.Printf("ERROR Could not query encodings: %s", err)
-			return nil, MakeResponse(500, GenericErrorBody("Database error"))
+			return nil, MakeResponseJson(500, GenericErrorBody("Database error"))
 		}
 	}
 
@@ -138,7 +138,7 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		contentToFilter, err = ops.QueryEncodingsForContentId(ctx, idMapping.contentId, maybeSince)
 		if err != nil {
 			log.Printf("ERROR Could not query encodings: %s", err)
-			return nil, MakeResponse(500, GenericErrorBody("Database error"))
+			return nil, MakeResponseJson(500, GenericErrorBody("Database error"))
 		}
 	}
 
@@ -219,6 +219,6 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		}
 		return filteredContent, nil
 	} else {
-		return nil, MakeResponse(404, GenericErrorBody("No encodings matching your request"))
+		return nil, MakeResponseJson(404, GenericErrorBody("No encodings matching your request"))
 	}
 }
