@@ -72,6 +72,7 @@ echo "We have just (re-)deployed version $VERS"
 if [ "${GITHUB_HEAD_REF}" != "" ] || [ "${GITHUB_REF}" != "" ]; then
   echo Running on Github with ref ${GITHUB_REF}
   BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}  #https://stackoverflow.com/a/68674820/2840056
+  BRANCH=$(echo $BRANCH | awk -F '/' '{print $(NF)}')   #if there is a / in the branch name only use the last section
   echo Creating alias for branch ${BRANCH}
   aws lambda create-alias --function-name "$2" --name "${BRANCH}" --function-version "${VERS}" > /dev/null
   if [ "$?" != "0" ]; then
