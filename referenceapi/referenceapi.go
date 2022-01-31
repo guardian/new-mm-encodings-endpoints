@@ -26,7 +26,7 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 	if errResponse != nil {
 		switch errResponse.StatusCode {
 		case 404:
-			return common.MakeResponseRaw(404, aws.String("No content found.\n"), "text/plain"), nil
+			return common.MakeResponseRaw(404, aws.String("No content found.\n"), "text/plain;charset=UTF-8"), nil
 		default:
 			return errResponse, nil
 		}
@@ -34,13 +34,13 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 
 	if _, ok := (event.QueryStringParameters)["poster"]; ok {
 		if foundContent.PosterURL != "" {
-			return common.MakeResponseRaw(200, &foundContent.PosterURL, "text/plain"), nil
+			return common.MakeResponseRaw(200, &foundContent.PosterURL, "text/plain;charset=UTF-8"), nil
 		} else {
-			return common.MakeResponseRaw(404, aws.String("No poster URL found"), "text/plain"), nil
+			return common.MakeResponseRaw(404, aws.String("No poster URL found"), "text/plain;charset=UTF-8"), nil
 		}
 	}
 
-	return common.MakeResponseRaw(200, &foundContent.Url, "text/plain"), nil
+	return common.MakeResponseRaw(200, &foundContent.Url, "text/plain;charset=UTF-8"), nil
 }
 
 func main() {
