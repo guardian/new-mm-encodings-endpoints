@@ -78,8 +78,6 @@ func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*T
 				log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
 				success = false
 			}
-		} else {
-			//log.Printf("INFO Request %s from %s response had extra header %s", evt.AccessUrl, evt.FormattedTimestamp(), k)
 		}
 	}
 	for k, v := range evt.ExpectedOutputHeaders {
@@ -170,10 +168,13 @@ func AsyncTestEndpoint(inputCh chan *EndpointEvent, endpointBase *string, parall
 		go testProcessingThread(inputCh, outputCh, endpointBase, waitGroup)
 	}
 
+	outputWaitGroup := &sync.WaitGroup{}
+	outputWaitGroup.Add(1)
 	go func() {
 		waitGroup.Wait()
 		close(outputCh)
+		outputWaitGroup.Done()
 	}()
 
-	return outputCh, waitGroup
+	return outputCh, outputWaitGroup
 }

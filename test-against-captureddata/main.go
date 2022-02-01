@@ -24,7 +24,6 @@ func main() {
 	ddbClient := dynamodb.NewFromConfig(cfg)
 
 	eventCh, errCh := AsyncRecordReader(ddbClient, tableName, *filter, int32(*pageSize))
-	//time.Sleep(1*time.Second)
 	resultsCh, waitGroup := AsyncTestEndpoint(eventCh, endpointBase, *parallel)
 
 	writeErrCh := AsyncWriter(resultsCh, *outputFilename)
@@ -36,6 +35,7 @@ func main() {
 			case err := <-writeErrCh:
 				if err == nil {
 					waitGroup.Done()
+					return
 				} else {
 					log.Printf("ERROR could not write records: %s", err)
 				}

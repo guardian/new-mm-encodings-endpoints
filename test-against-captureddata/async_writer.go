@@ -56,6 +56,11 @@ func AsyncWriter(inputCh chan TestOutput, filename string) chan error {
 		for {
 			n++
 			evt, moreEvents := <-inputCh
+			if !moreEvents {
+				log.Printf("INFO AsyncWriter got to end of input, shutting down")
+				errCh <- nil
+				return
+			}
 
 			err := writer.Write(*evt.toCSV())
 			writer.Flush()
@@ -63,11 +68,6 @@ func AsyncWriter(inputCh chan TestOutput, filename string) chan error {
 			if err != nil {
 				log.Printf("ERROR Could not write CSV record %d: %s", n, err)
 				errCh <- err
-				return
-			}
-			if !moreEvents {
-				log.Printf("INFO AsyncWriter got to end of input, shutting down")
-				errCh <- nil
 				return
 			}
 		}
