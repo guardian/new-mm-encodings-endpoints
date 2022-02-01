@@ -14,6 +14,22 @@ type ErrorDetail struct {
 	QueryUrl    string `json:"query_url"`
 }
 
+var DefaultHeaders = map[string]string{
+	"Access-Control-Allow-Origin":      "*",
+	"Access-Control-Allow-Methods":     "GET, OPTIONS",
+	"Access-Control-Allow-Headers":     "*",
+	"Access-Control-Allow-Credentials": "false",
+	"Access-Control-Max-Age":           "3600",
+}
+
+func getDefaultHeaders() map[string]string {
+	newHeaders := make(map[string]string, len(DefaultHeaders))
+	for k, v := range DefaultHeaders {
+		newHeaders[k] = v
+	}
+	return newHeaders
+}
+
 /*
 GenericErrorBody generates a standard error response suitable for serialization into json
 Arguments: `msg` - string to include as the "detail" field in the returned json object
@@ -67,13 +83,7 @@ Arguments:
 - contentType - MIME type to indicate what the content is
 */
 func MakeResponseRaw(responseCode int, contentBodyString *string, contentType string) *events.APIGatewayProxyResponse {
-	headers := map[string]string{
-		"Access-Control-Allow-Origin":      "*",
-		"Access-Control-Allow-Methods":     "GET, OPTIONS",
-		"Access-Control-Allow-Headers":     "*",
-		"Access-Control-Allow-Credentials": "false",
-		"Access-Control-Max-Age":           "3600",
-	}
+	headers := getDefaultHeaders()
 	contentLength := len(*contentBodyString)
 	if contentLength != 0 {
 		headers["Content-Type"] = contentType
@@ -84,5 +94,23 @@ func MakeResponseRaw(responseCode int, contentBodyString *string, contentType st
 		StatusCode: responseCode,
 		Headers:    headers,
 		Body:       *contentBodyString,
+	}
+}
+
+/*
+MakeResponseRedirect takes a URL and uses it in the location header in a response. It returns a pointer to APIGatewayProxyResponse
+that can be passed directly back to the runtime.
+
+Argument:
+
+- uRL - URL to use in the location header
+*/
+func MakeResponseRedirect(uRL string) *events.APIGatewayProxyResponse {
+	headers := getDefaultHeaders()
+	headers["Location"] = fmt.Sprintf("%s", uRL)
+
+	return &events.APIGatewayProxyResponse{
+		StatusCode: 302,
+		Headers:    headers,
 	}
 }

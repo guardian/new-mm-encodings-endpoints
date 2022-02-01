@@ -1,7 +1,6 @@
-.PHONY: referenceapi genericoptions upload clean deploy migration test-against-captureddata
+.PHONY: referenceapi genericoptions upload clean deploy migration test-against-captureddata video
 
-all: referenceapi genericoptions migration test-against-captureddata
-
+all: referenceapi genericoptions migration test-against-captureddata video
 
 referenceapi:
 	make -C referenceapi/
@@ -9,6 +8,7 @@ referenceapi:
 upload:
 	make -C referenceapi/ upload
 	make -C genericoptions/ upload
+	make -C video/ upload
 
 migration:
 	make -C migration/
@@ -35,7 +35,12 @@ clean:
 	make -C referenceapi/ clean
 	make -C genericoptions/ clean
 	make -C test-against-captureddata/ clean
+	make -C video/ clean
 
 deploy:
 	make -C referenceapi/ deploy
 	make -C genericoptions/ deploy
+	make -C video/ deploy
+
+video:
+	make -C video/
