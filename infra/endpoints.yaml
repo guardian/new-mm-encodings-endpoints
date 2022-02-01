@@ -372,7 +372,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub ${App}-Video
-      Description: Returns a text URL giving the location of the content
+      Description: Returns a URL in a location header giving the location of the content with a 302 status to trigger a redirect on the client
       Code:
         S3Bucket: !Ref LambdaBucket
         S3Key: !Sub "${App}/${Stack}/${InitialVersionId}/video.zip"
