@@ -15,7 +15,7 @@ var config common.Config
 var mimeEquivelentsCache common.MimeEquivalentsCache
 
 /*
-This script looks up a video in the interactivepublisher database and returns a plaintext url if it can be found
+This script looks up a video in the interactivepublisher database and returns an HTML video tag with the URL of the video in
 */
 
 func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
