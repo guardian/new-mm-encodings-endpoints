@@ -42,6 +42,7 @@ Returns:
 - an error on failure.
 */
 func templateHTML(foundContent *common.ContentResult, extraArguments string) (string, error) {
+	//see https://stackoverflow.com/questions/14765395/why-am-i-seeing-zgotmplz-in-my-go-html-template-output
 	extraFuncMap := template.FuncMap{
 		//defines a "filter function" that marks the text as html-safe
 		"safe": func(s string) template.HTML {
@@ -59,7 +60,6 @@ func templateHTML(foundContent *common.ContentResult, extraArguments string) (st
 		return "", err
 	}
 
-	//hTMLToReturn := "<video preload='auto' id='video_" + fmt.Sprint(foundContent.OctopusId) + "' poster='" + foundContent.PosterURL + "'" + extraArguments + ">\n\t<source src='" + foundContent.Url + "' type='" + foundContent.Format + "'>\n</video>\n"
 	templateData := &TemplateData{
 		ContentResult:  *foundContent,
 		ExtraArguments: extraArguments,
