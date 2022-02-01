@@ -10,20 +10,16 @@ import (
 	"log"
 )
 
+var ops common.DynamoDbOps
+var config common.Config
+var mimeEquivelentsCache common.MimeEquivalentsCache
+
 /*
 This script looks up a video in the interactivepublisher database and returns a plaintext url if it can be found
 */
 
 func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
-	config, configErr := common.NewConfig()
-	if configErr != nil {
-		log.Printf("ERROR Could not initialise config: %s", configErr)
-		return nil, configErr
-	}
-
-	ops := common.NewDynamoDbOps(config)
-
-	foundContent, errResponse := common.FindContent(ctx, &event.QueryStringParameters, ops, config)
+	foundContent, errResponse := common.FindContent(ctx, &event.QueryStringParameters, ops, config, mimeEquivelentsCache)
 	if errResponse != nil {
 		switch errResponse.StatusCode {
 		case 404:
@@ -49,5 +45,18 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 }
 
 func main() {
+	var err error
+	config, err = common.NewConfig()
+	if err != nil {
+		log.Printf("ERROR Could not initialise config: %s", err)
+		panic("could not initialise config")
+	}
+
+	ops = common.NewDynamoDbOps(config)
+	mimeEquivelentsCache, err = common.NewMimeEquivalentsCache(context.Background(), ops)
+	if err != nil {
+		log.Printf("ERROR Could not initialise mime equivalents: %s", err)
+		panic("could not initialise MIME equivalents")
+	}
 	lambda.Start(HandleEvent)
 }
