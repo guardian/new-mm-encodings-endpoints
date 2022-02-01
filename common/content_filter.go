@@ -1,5 +1,7 @@
 package common
 
+import "log"
+
 /*
 isStringInList will return `true` if the given string is in the given list or `false` otherwise
 */
@@ -86,6 +88,10 @@ func ContentFilter(encodings []*Encoding, formats *[]string, need_mobile bool, m
 		}
 	}
 
+	log.Printf("ContentFilter: %d records remaining after filter", len(encodingsToReturn))
+	for _, e := range encodingsToReturn {
+		log.Printf("\t%v", e)
+	}
 	if len(encodingsToReturn) == 0 {
 		return nil
 	} else {
