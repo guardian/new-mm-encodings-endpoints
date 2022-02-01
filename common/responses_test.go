@@ -6,7 +6,7 @@ import (
 )
 
 /*
-Tests MakeResponseRedirect outputs the correct data given
+Tests MakeResponseRedirect outputs the correct data
 */
 func TestMakeResponseRedirect(t *testing.T) {
 	result := MakeResponseRedirect("https://test.url/")
