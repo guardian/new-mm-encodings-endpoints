@@ -32,7 +32,7 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 		}
 	}
 
-	if _, ok := (event.QueryStringParameters)["poster"]; ok {
+	if _, havePoster := (event.QueryStringParameters)["poster"]; havePoster {
 		if foundContent.PosterURL != "" {
 			return common.MakeResponseRedirect(foundContent.PosterURL), nil
 		} else {

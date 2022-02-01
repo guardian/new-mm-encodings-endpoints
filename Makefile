@@ -36,7 +36,6 @@ clean:
 	make -C genericoptions/ clean
 	make -C test-against-captureddata/ clean
 	make -C video/ clean
-	make -C video/ clean
 
 deploy:
 	make -C referenceapi/ deploy
