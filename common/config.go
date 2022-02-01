@@ -31,6 +31,7 @@ type Config interface {
 	GetDynamoClient() *dynamodb.Client
 	IdMappingTable() string
 	EncodingsTablePtr() *string
+	MimeEquivalentsTablePtr() *string
 }
 
 /*
@@ -84,4 +85,8 @@ func (c *ConfigImpl) IdMappingTable() string {
 
 func (c *ConfigImpl) EncodingsTablePtr() *string {
 	return aws.String(c.DyanmoContentTable)
+}
+
+func (c *ConfigImpl) MimeEquivalentsTablePtr() *string {
+	return aws.String(c.MimeEquivalentsTable)
 }

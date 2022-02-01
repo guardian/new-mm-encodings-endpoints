@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -68,4 +69,8 @@ func (ops *DynamoOpsMock) QueryIdMappings(ctx context.Context, indexName string,
 		coped := ops.IdMappingResult
 		return &coped, nil
 	}
+}
+
+func (ops *DynamoOpsMock) GetAllMimeEquivalents(ctx context.Context) ([]*MimeEquivalent, error) {
+	return nil, errors.New("not implemented in DynamoOpsMock")
 }

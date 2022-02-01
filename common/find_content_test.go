@@ -28,7 +28,7 @@ func TestFindContentInvalidParams(t *testing.T) {
 		EncodingsTableVal: "encodings-table",
 	}
 
-	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config)
+	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config, &MimeEquivalentsCacheMock{})
 	if content != nil {
 		t.Error("FindContent returned content result for an invalid query")
 	}
@@ -64,7 +64,7 @@ func TestFindContentInvalidFilename(t *testing.T) {
 		EncodingsTableVal: "encodings-table",
 	}
 
-	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config)
+	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config, &MimeEquivalentsCacheMock{})
 	if content != nil {
 		t.Error("FindContent returned content result for an invalid filebase")
 	}
@@ -125,7 +125,7 @@ func TestFindContentValidFilename(t *testing.T) {
 		EncodingsTableVal: "encodings-table",
 	}
 
-	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config)
+	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config, &MimeEquivalentsCacheMock{})
 	if errResponse != nil {
 		t.Errorf("FindContent returned an error '%v' for a valid filebase", errResponse)
 		t.FailNow()
@@ -199,7 +199,7 @@ func TestFindContentValidFilenameNotFound(t *testing.T) {
 		EncodingsTableVal: "encodings-table",
 	}
 
-	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config)
+	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config, &MimeEquivalentsCacheMock{})
 	if errResponse == nil {
 		t.Errorf("FindContent returned no error for a file not found")
 		t.FailNow()
@@ -238,7 +238,7 @@ func TestFindContentInvalidOctopusId(t *testing.T) {
 		EncodingsTableVal: "encodings-table",
 	}
 
-	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config)
+	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config, &MimeEquivalentsCacheMock{})
 	if content != nil {
 		t.Error("FindContent returned content result for an invalid octid")
 	}
@@ -274,7 +274,7 @@ func TestFindContentAnotherInvalidOctopusId(t *testing.T) {
 		EncodingsTableVal: "encodings-table",
 	}
 
-	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config)
+	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config, &MimeEquivalentsCacheMock{})
 	if content != nil {
 		t.Error("FindContent returned content result for an invalid octid")
 	}
@@ -335,7 +335,7 @@ func TestFindContentValidOctid(t *testing.T) {
 		EncodingsTableVal: "encodings-table",
 	}
 
-	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config)
+	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config, &MimeEquivalentsCacheMock{})
 	if errResponse != nil {
 		t.Errorf("FindContent returned an error '%v' for a valid octopusid", errResponse)
 		t.FailNow()
@@ -410,7 +410,7 @@ func TestFindContentFallback(t *testing.T) {
 		EncodingsTableVal: "encodings-table",
 	}
 
-	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config)
+	content, errResponse := FindContent(context.Background(), &fakeParams, ops, config, &MimeEquivalentsCacheMock{})
 	if errResponse != nil {
 		t.Errorf("FindContent returned an error '%v' for a valid octopusid", errResponse)
 		t.FailNow()
@@ -482,7 +482,7 @@ func TestFindContentAllowInsecure(t *testing.T) {
 		EncodingsTableVal: "encodings-table",
 	}
 
-	content, _ := FindContent(context.Background(), &fakeParams, ops, config)
+	content, _ := FindContent(context.Background(), &fakeParams, ops, config, &MimeEquivalentsCacheMock{})
 	if content.Url != "http://url/to/content" {
 		t.Error("FindContent returned a URL not starting with http:")
 	}
@@ -532,7 +532,7 @@ func TestFindContentM3U8(t *testing.T) {
 		EncodingsTableVal: "encodings-table",
 	}
 
-	content, _ := FindContent(context.Background(), &fakeParams, ops, config)
+	content, _ := FindContent(context.Background(), &fakeParams, ops, config, &MimeEquivalentsCacheMock{})
 	if content.Url != "https://some.cdn/somefilename.m3u8" {
 		t.Errorf("Unexpected output: %s", content.Url)
 	}
