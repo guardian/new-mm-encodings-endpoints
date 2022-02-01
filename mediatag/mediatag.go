@@ -1,22 +1,78 @@
 package main
 
+/*
+This script looks up a video in the interactivepublisher database and returns an HTML video tag with the URL of the video in
+*/
+
 import (
 	"context"
-	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/guardian/new-encodings-endpoints/common"
+	"html/template"
 	"log"
+	"strings"
 )
 
 var ops common.DynamoDbOps
 var config common.Config
 var mimeEquivelentsCache common.MimeEquivalentsCache
 
+const HtmlTagTemplate = `<video preload='auto' id='video_{{.OctopusId}}' poster='{{.PosterURL}}' {{.ExtraArguments|attr}}>
+  <source src='{{.Url}}' type='{{.Format}}'>
+</video>`
+
+type TemplateData struct {
+	common.ContentResult
+	ExtraArguments string
+}
+
 /*
-This script looks up a video in the interactivepublisher database and returns an HTML video tag with the URL of the video in
+templateHTML renders an html tag for the given found content that is injection-safe.
+
+Arguments:
+
+- foundContent - a non-NULL pointer to a ContentResult instance giving the content to build the tag for
+- extraArguments - a string of extra arguments to put into the video tag
+
+Returns:
+
+- a string of the rendered html on success
+- an error on failure.
 */
+func templateHTML(foundContent *common.ContentResult, extraArguments string) (string, error) {
+	extraFuncMap := template.FuncMap{
+		//defines a "filter function" that marks the text as html-safe
+		"safe": func(s string) template.HTML {
+			return template.HTML(s)
+		},
+		//defines a "filter function" that marks the text as an HTML attribute
+		"attr": func(s string) template.HTMLAttr {
+			return template.HTMLAttr(s)
+		},
+	}
+
+	tmpl, err := template.New("html").Funcs(extraFuncMap).Parse(HtmlTagTemplate)
+	if err != nil {
+		log.Printf("ERROR Could not parse builtin html template \"%s\": %s", HtmlTagTemplate, err)
+		return "", err
+	}
+
+	//hTMLToReturn := "<video preload='auto' id='video_" + fmt.Sprint(foundContent.OctopusId) + "' poster='" + foundContent.PosterURL + "'" + extraArguments + ">\n\t<source src='" + foundContent.Url + "' type='" + foundContent.Format + "'>\n</video>\n"
+	templateData := &TemplateData{
+		ContentResult:  *foundContent,
+		ExtraArguments: extraArguments,
+	}
+
+	wr := &strings.Builder{}
+	err = tmpl.Execute(wr, templateData)
+	if err != nil {
+		log.Printf("ERROR Could not render found content %v to template \"%s\": %s", foundContent, HtmlTagTemplate, err)
+		return "", err
+	}
+	return wr.String(), nil
+}
 
 func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 	foundContent, errResponse := common.FindContent(ctx, &event.QueryStringParameters, ops, config, mimeEquivelentsCache)
@@ -40,7 +96,11 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 		extraArguments = extraArguments + " loop"
 	}
 
-	hTMLToReturn := "<video preload='auto' id='video_" + fmt.Sprint(foundContent.OctopusId) + "' poster='" + foundContent.PosterURL + "'" + extraArguments + ">\n\t<source src='" + foundContent.Url + "' type='" + foundContent.Format + "'>\n</video>\n"
+	hTMLToReturn, err := templateHTML(foundContent, extraArguments)
+
+	if err != nil {
+		return common.MakeResponseJson(500, common.GenericErrorBody("Internal error, see logs")), nil
+	}
 	return common.MakeResponseRaw(200, &hTMLToReturn, "text/html;charset=UTF-8"), nil
 }
 
