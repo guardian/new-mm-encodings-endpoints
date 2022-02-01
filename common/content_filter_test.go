@@ -29,6 +29,19 @@ func TestContentFilterFormat(t *testing.T) {
 }
 
 /*
+Should return data that has _any_ of the given formats specified
+*/
+func TestContentFilterAlternateFormat(t *testing.T) {
+	formats := []string{"socks", "test"}
+	testarray := []*Encoding{{1, 1, "test", "test2", false, false, "test", "test", 1, 1, ReturnCorrectTimeObject(), 1, 1, 4.0, 1, "test", 1, "test"}, {1, 1, "test", "test", false, false, "test", "test", 1, 1, ReturnCorrectTimeObject(), 1, 1, 4.0, 1, "test", 1, "test"}}
+	expectedOutput := &ContentResult{Encoding{1, 1, "test", "test", false, false, "test", "test", 1, 1, ReturnCorrectTimeObject(), 1, 1, 4.0, 1, "test", 1, "test"}, "", ""}
+	result := ContentFilter(testarray, &formats, false, 1, 1, 1, 1, 1, 1)
+	if !reflect.DeepEqual(result, expectedOutput) {
+		t.Errorf("Unexpected output")
+	}
+}
+
+/*
 Tests that the code which removes records with the wrong mobile setting works
 */
 func TestContentFilterMobile(t *testing.T) {
