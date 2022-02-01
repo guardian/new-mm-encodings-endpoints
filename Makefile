@@ -34,7 +34,6 @@ clean:
 	make -C migration/ clean
 	make -C referenceapi/ clean
 	make -C genericoptions/ clean
-
 	make -C test-against-captureddata/ clean
 	make -C video/ clean
 	make -C video/ clean
