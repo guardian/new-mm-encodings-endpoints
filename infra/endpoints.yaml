@@ -155,6 +155,7 @@ Resources:
                   - !Sub ${ReferenceAPI.Arn}:*
                   - !Sub ${GenericOptions.Arn}:*
                   - !Sub ${VideoAPI.Arn}:*
+                  - !Sub ${MediaTag.Arn}:*
                 Effect: Allow
 
   ##common access policy used by the endpoints
@@ -466,6 +467,119 @@ Resources:
         'Fn::Sub': ${APIGatewayStack}-RestAPI
       ResourceId: !Ref VideoAPIResource
       OperationName: operation
+  ##`mediatag` endpoint setup
+  MediaTagRole: #this describes the access permissions that the lambda function has when executing
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+        - !Ref EndpointsAccessPolicy
+
+  MediaTag: #this describes the lambda function used to generate the API response
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${App}-MediaTag
+      Description: Returns HTML video tag with a SOURCE tag with the URL of a video in
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub "${App}/${Stack}/${InitialVersionId}/mediatag.zip"
+      Handler: mediatag
+      Runtime: go1.x
+      MemorySize: 128
+      Environment:
+        Variables:
+          ID_MAPPING_TABLE: !Ref IdMappingTable
+          ENCODINGS_TABLE: !Ref EncodingsTable
+          MIME_EQUIVALENTS_TABLE: !Ref MimeEquivalentsTable
+          POSTER_FRAMES_TABLE: !Ref PosterFramesTable
+      Role: !GetAtt MediaTagRole.Arn
+      Timeout: 5
+  MediaTagCodeAlias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      Description: Staging deployment for the media tag
+      FunctionName: !Ref MediaTag
+      FunctionVersion: "$LATEST"  #this is overriden in the deploy processes
+      Name: CODE
+
+  MediaTagProdAlias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      Description: Staging deployment for the media tag
+      FunctionName: !Ref MediaTag
+      FunctionVersion: "$LATEST"  #this is overriden in the deploy processes
+      Name: PROD
+
+  MediaTagPermissions:  #this describes the permissions that allow the lambda function to be called
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - MediaTag
+    Properties:
+      Action: lambda:Invoke
+      FunctionName: !Ref MediaTag
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:/*/GET/reference"
+  MediaTagResource:   #this describes the HTTP path to be associated with this function
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !ImportValue
+        'Fn::Sub': ${APIGatewayStack}-RestAPI
+      PathPart: mediatag.php
+      ParentId: !ImportValue
+        'Fn::Sub': ${APIGatewayStack}-InteractiveVidsBase
+  MediaTagEndpoint: #this creates the entry in the Rest API for the GET handler
+    Type: AWS::ApiGateway::Method
+    DependsOn:
+      - MediaTagResource
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: NONE
+      HttpMethod: GET
+      Integration:
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses: []
+        PassthroughBehavior: WHEN_NO_TEMPLATES
+        TimeoutInMillis: 5000
+        IntegrationHttpMethod: POST
+        Credentials: !GetAtt IAMAPIServiceRole.Arn
+        ContentHandling: CONVERT_TO_TEXT
+        Type: AWS_PROXY
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${MediaTag}:${!stageVariables.stage}/invocations"
+      RestApiId: !ImportValue
+        'Fn::Sub': ${APIGatewayStack}-RestAPI
+      ResourceId: !Ref MediaTagResource
+      OperationName: operation
+  MediaTagPreflight: #this creates the entry in the Rest API for the OPTIONS handler
+    Type: AWS::ApiGateway::Method
+    DependsOn:
+      - MediaTagResource
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      Integration:
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses: [ ]
+        PassthroughBehavior: WHEN_NO_TEMPLATES
+        TimeoutInMillis: 5000
+        IntegrationHttpMethod: POST
+        Credentials: !GetAtt IAMAPIServiceRole.Arn
+        ContentHandling: CONVERT_TO_TEXT
+        Type: AWS_PROXY
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${GenericOptions}:${!stageVariables.stage}/invocations"
+      RestApiId: !ImportValue
+        'Fn::Sub': ${APIGatewayStack}-RestAPI
+      ResourceId: !Ref MediaTagResource
+      OperationName: operation
   ##API Gateway CODE environment setup
   RestAPIStageCode:
     Type: AWS::ApiGateway::Stage
@@ -512,24 +626,24 @@ Resources:
           Value: PROD
 
   ##DNS mappings to "real-world" addresses
-#  ApiGatewayDomainMapping:
-#    Type: AWS::ApiGateway::BasePathMapping
-#    Properties:
-#      DomainName: !Ref DeploymentServername
-#      RestApiId: !Ref RestAPI
-#      Stage: !Ref Stage
-#  ApiGatewayDomain:
-#    Type: AWS::ApiGateway::DomainName
-#    Properties:
-#      CertificateArn: !Ref DeploymentCertArn
-#      DomainName: !Ref DeploymentServername
-#      Tags:
-#        - Key: App
-#          Value: !Ref App
-#        - Key: Stack
-#          Value: !Ref Stack
-#        - Key: Stage
-#          Value: !Ref Stage
+  #  ApiGatewayDomainMapping:
+  #    Type: AWS::ApiGateway::BasePathMapping
+  #    Properties:
+  #      DomainName: !Ref DeploymentServername
+  #      RestApiId: !Ref RestAPI
+  #      Stage: !Ref Stage
+  #  ApiGatewayDomain:
+  #    Type: AWS::ApiGateway::DomainName
+  #    Properties:
+  #      CertificateArn: !Ref DeploymentCertArn
+  #      DomainName: !Ref DeploymentServername
+  #      Tags:
+  #        - Key: App
+  #          Value: !Ref App
+  #        - Key: Stack
+  #          Value: !Ref Stack
+  #        - Key: Stage
+  #          Value: !Ref Stage
 
   ##Ensures that the API is deployed when things change above
   RestAPIDeployment:
