@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -32,15 +33,19 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 		}
 	}
 
-	if _, ok := (event.QueryStringParameters)["poster"]; ok {
-		if foundContent.PosterURL != "" {
-			return common.MakeResponseRaw(200, &foundContent.PosterURL, "text/plain;charset=UTF-8"), nil
-		} else {
-			return common.MakeResponseRaw(404, aws.String("No poster URL found"), "text/plain;charset=UTF-8"), nil
-		}
+	extraArguments := ""
+	if _, hasNoControls := (event.QueryStringParameters)["nocontrols"]; hasNoControls == false {
+		extraArguments = extraArguments + " controls"
+	}
+	if _, hasAutoPlay := (event.QueryStringParameters)["autoplay"]; hasAutoPlay {
+		extraArguments = extraArguments + " autoplay"
+	}
+	if _, hasLoop := (event.QueryStringParameters)["loop"]; hasLoop {
+		extraArguments = extraArguments + " loop"
 	}
 
-	return common.MakeResponseRaw(200, &foundContent.Url, "text/plain;charset=UTF-8"), nil
+	hTMLToReturn := "<video preload='auto' id='video_" + fmt.Sprint(foundContent.OctopusId) + "' poster='" + foundContent.PosterURL + "'" + extraArguments + ">\n\t<source src='" + foundContent.Url + "' type='" + foundContent.Format + "'>\n</video>\n"
+	return common.MakeResponseRaw(200, &hTMLToReturn, "text/html;charset=UTF-8"), nil
 }
 
 func main() {
