@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/aws/aws-lambda-go/events"
 	"log"
+	"net/url"
 	"regexp"
 	"strconv"
 	"time"
@@ -46,7 +47,7 @@ func getFCSId(ctx context.Context, ops DynamoDbOps, contentId int32) (*string, e
 	}
 
 	for _, r := range *results {
-		if r != "" {
+		if r != "" && r != "ABSENT" {
 			finalResult := r
 			return &finalResult, nil
 		}
@@ -99,7 +100,7 @@ Returns:
 - a pointer to ContentResult on success
 - a pointer to APIGatewayProxyResponse on error. This can be passed back directly to the runtime.
 */
-func FindContent(ctx context.Context, queryStringParams *map[string]string, ops DynamoDbOps, config Config) (*ContentResult, *events.APIGatewayProxyResponse) {
+func FindContent(ctx context.Context, queryStringParams *map[string]string, ops DynamoDbOps, config Config, cache MimeEquivalentsCache) (*ContentResult, *events.APIGatewayProxyResponse) {
 	//FIXME: no memcache implementation yet, we'll see how necessary it actually is
 	idMapping, errResponse := getIDMapping(ctx, queryStringParams, ops, config)
 	if errResponse != nil {
@@ -147,15 +148,21 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 	}
 
 	var filenameOverride string
-	var format string
+	var formats []string
 	if val, ok := (*queryStringParams)["format"]; ok {
 		var needOverride bool
 		filenameOverride, needOverride = HasDodgyM3U8Format(val)
+		var initialFormat string
 		if needOverride {
-			format = "video/m3u8" //in this case, the last part of the URL got overwritten by a filepath by dodgy iOS implementation. So we hard-fix it here.
+			initialFormat = "video/m3u8" //in this case, the last part of the URL got overwritten by a filepath by dodgy iOS implementation. So we hard-fix it here.
 		} else {
-			format = val //the format part was not messed around so just use it
+			initialFormat, err = url.QueryUnescape(val) //the format part was not messed around so just use it
+			if err != nil {
+				log.Printf("ERROR could not unescape requested format string %s: %s", val, err)
+				return nil, MakeResponseJson(400, GenericErrorBody("Invalid query"))
+			}
 		}
+		formats = cache.EquivalentsFor(initialFormat)
 	}
 
 	var need_mobile = false
@@ -201,7 +208,7 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		maxwidth = int32(parseIntOutput)
 	}
 
-	filteredContent := ContentFilter(contentToFilter, format, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
+	filteredContent := ContentFilter(contentToFilter, &formats, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
 	if filteredContent != nil {
 		_, allowInsecure := (*queryStringParams)["allow_insecure"]
 		filteredContent.Url = ForceHTTPS(filteredContent.Url, allowInsecure)
@@ -212,8 +219,10 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 			log.Printf("WARNING GeneratePosterImageURL could not generate poster image URL for: %s, error: %s", filteredContent.Url, possiblePosterImageError)
 		}
 
-		filteredContent.RealMimeName = format //normally this is the format that was requested but it can be messed up by iOS
-		if filenameOverride != "" {           //we have a malformed request from iOS and must work around it
+		if len(formats) > 0 {
+			filteredContent.RealMimeName = formats[0] //normally this is the format that was requested but it can be messed up by iOS
+		}
+		if filenameOverride != "" { //we have a malformed request from iOS and must work around it
 			endOfURL := regexp.MustCompile(`/[^/]+$`)
 			filteredContent.Url = endOfURL.ReplaceAllString(filteredContent.Url, "/"+filenameOverride)
 		}

@@ -25,6 +25,7 @@ type DynamoDbOps interface {
 	QueryEncodingsForFCSId(ctx context.Context, fcsid string) ([]*Encoding, error)
 	QueryEncodingsForContentId(ctx context.Context, contentid int32, maybeSince *time.Time) ([]*Encoding, error)
 	QueryIdMappings(ctx context.Context, indexName string, keyFieldName string, searchTerm interface{}) (*IdMappingRecord, error)
+	GetAllMimeEquivalents(ctx context.Context) ([]*MimeEquivalent, error)
 }
 
 /*
@@ -271,4 +272,28 @@ func (ops *DynamoDbOpsImpl) QueryIdMappings(ctx context.Context, indexName strin
 		log.Printf("WARNING Got %d idmapping records, expected only 1. Note that there is a hard limit of 20.", len(response.Items))
 		return NewIdMappingRecord(&response.Items[0])
 	}
+}
+
+/*
+GetAllMimeEquivalents downloads the MIME equivalents table to use for lookups
+*/
+func (ops *DynamoDbOpsImpl) GetAllMimeEquivalents(ctx context.Context) ([]*MimeEquivalent, error) {
+	rq := &dynamodb.ScanInput{
+		TableName: ops.config.MimeEquivalentsTablePtr(),
+	}
+	response, err := ops.client.Scan(ctx, rq)
+	if err != nil {
+		log.Printf("ERROR Can't load in mime equivalents: %s", err)
+		return nil, err
+	}
+
+	results := make([]*MimeEquivalent, len(response.Items))
+	for i, raw := range response.Items {
+		results[i], err = MimeEquivalentFromDynamo((*RawDynamoRecord)(&raw))
+		if err != nil {
+			log.Printf("ERROR Can't load in record %d from mime equivalents (%v): %s", i, raw, err)
+			return nil, err
+		}
+	}
+	return results, nil
 }

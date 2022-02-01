@@ -1,6 +1,9 @@
 package common
 
-import "github.com/aws/aws-sdk-go-v2/service/dynamodb"
+import (
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+)
 
 type ConfigMock struct {
 	IdMappingTableVal string
@@ -18,4 +21,8 @@ func (c *ConfigMock) IdMappingTable() string {
 func (c *ConfigMock) EncodingsTablePtr() *string {
 	copied := c.EncodingsTableVal
 	return &copied
+}
+
+func (c *ConfigMock) MimeEquivalentsTablePtr() *string {
+	return aws.String("mime-equivalents")
 }
