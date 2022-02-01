@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"reflect"
 	"testing"
 	"time"
@@ -129,5 +130,11 @@ func TestContentFilterMaxWidth(t *testing.T) {
 	result := ContentFilter(testarray, &formats, false, 3000, 6000, 800, 2000, 900, 2000)
 	if !reflect.DeepEqual(result, expectedOutput) {
 		t.Errorf("Unexpected output")
+	}
+}
+
+func TestIsStringInList(t *testing.T) {
+	if isStringInList(aws.String("audio/mpeg"), &[]string{"audio/mpeg", "audio/mp3"}) == false {
+		t.Error("isStringInList failed to detect 'audio/mpeg' in a string")
 	}
 }

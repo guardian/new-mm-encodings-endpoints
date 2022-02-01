@@ -128,7 +128,7 @@ func _marshalResponseToSortedEncodings(response *dynamodb.QueryOutput) ([]*Encod
 	}
 
 	sort.Slice(encodings, func(i int, j int) bool {
-		return encodings[i].VBitrate < encodings[j].VBitrate
+		return encodings[i].VBitrate > encodings[j].VBitrate
 	})
 	return encodings, nil
 }

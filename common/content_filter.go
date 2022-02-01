@@ -30,35 +30,44 @@ Returns:
 - bool - true if the encoding should pass and false if it should not
 */
 func TestEncoding(encoding *Encoding, formats *[]string, need_mobile bool, minbitrate int32, maxbitrate int32, minheight int32, maxheight int32, minwidth int32, maxwidth int32) bool {
+	log.Printf("DEBUG ContentFilter.TestEncoding encoding's format is %s, potential formats list is %v", encoding.Format, *formats)
 	if len(*formats) > 0 && !isStringInList(&encoding.Format, formats) {
+		log.Printf("DEBUG ContentFilter.TestEncoding %s discounted on format", encoding.Url)
 		return false
 	}
 
-	if encoding.Mobile != need_mobile {
+	if need_mobile && !encoding.Mobile { //if need_mobile is false that means "don't discount on basis of mobile flag"
+		log.Printf("DEBUG ContentFilter.TestEncoding %s discounted on mobile", encoding.Url)
 		return false
 	}
 
 	if (encoding.VBitrate < minbitrate) && (minbitrate != 0) {
+		log.Printf("DEBUG ContentFilter.TestEncoding %s discounted on min vbitrate", encoding.Url)
 		return false
 	}
 
 	if (encoding.VBitrate > maxbitrate) && (maxbitrate != 0) {
+		log.Printf("DEBUG ContentFilter.TestEncoding %s discounted on max vbitrate", encoding.Url)
 		return false
 	}
 
 	if (encoding.FrameHeight < minheight) && (minheight != 0) {
+		log.Printf("DEBUG ContentFilter.TestEncoding %s discounted on min height", encoding.Url)
 		return false
 	}
 
 	if (encoding.FrameHeight > maxheight) && (maxheight != 0) {
+		log.Printf("DEBUG ContentFilter.TestEncoding %s discounted on max height", encoding.Url)
 		return false
 	}
 
 	if (encoding.FrameWidth < minwidth) && (minwidth != 0) {
+		log.Printf("DEBUG ContentFilter.TestEncoding %s discounted on min width", encoding.Url)
 		return false
 	}
 
 	if (encoding.FrameWidth > maxwidth) && (maxwidth != 0) {
+		log.Printf("DEBUG ContentFilter.TestEncoding %s discounted on max width", encoding.Url)
 		return false
 	}
 
