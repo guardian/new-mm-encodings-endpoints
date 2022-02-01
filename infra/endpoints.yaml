@@ -390,7 +390,7 @@ Resources:
   VideoAPICodeAlias:
     Type: AWS::Lambda::Alias
     Properties:
-      Description: Staging deployment for the media-video API
+      Description: Staging deployment for the video endpoint
       FunctionName: !Ref VideoAPI
       FunctionVersion: "$LATEST"  #this is overriden in the deploy processes
       Name: CODE
@@ -398,7 +398,7 @@ Resources:
   VideoAPIProdAlias:
     Type: AWS::Lambda::Alias
     Properties:
-      Description: Staging deployment for the media-video API
+      Description: Staging deployment for the video endpoint
       FunctionName: !Ref VideoAPI
       FunctionVersion: "$LATEST"  #this is overriden in the deploy processes
       Name: PROD
