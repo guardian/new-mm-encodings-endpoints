@@ -269,8 +269,9 @@ func (ops *DynamoDbOpsImpl) QueryIdMappings(ctx context.Context, indexName strin
 	} else if len(response.Items) == 1 {
 		return NewIdMappingRecord(&response.Items[0])
 	} else {
-		log.Printf("WARNING Got %d idmapping records, expected only 1. Note that there is a hard limit of 20.", len(response.Items))
-		return NewIdMappingRecord(&response.Items[0])
+		log.Printf("WARNING Got %d idmapping records, expected only 1. Note that there is a hard limit of 20. Using the most recent.", len(response.Items))
+		mostRecent := len(response.Items) - 1 //the indexing setup in DynamoDB returns the oldest first (sort key is lastupdate)
+		return NewIdMappingRecord(&response.Items[mostRecent])
 	}
 }
 
