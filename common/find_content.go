@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -56,6 +57,18 @@ func getFCSId(ctx context.Context, ops DynamoDbOps, contentId int32) (*string, e
 }
 
 /**
+uRLDecodeAndTrim URL decodes a string, trims it of white space, and returns it
+*/
+func uRLDecodeAndTrim(inputString string) (string, error) {
+	decodedString, possibleError := url.QueryUnescape(inputString)
+	if possibleError != nil {
+		return "", possibleError
+	}
+	trimmedString := strings.TrimSpace(decodedString)
+	return trimmedString, nil
+}
+
+/**
 getIDMapping tries to find an ID mapping record for the given URL, which must contain either a `file` or `octopusid`
 parameter
 */
@@ -63,7 +76,12 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, ops
 	var idMapping *IdMappingRecord
 	var err error
 
-	if fn, haveFn := (*queryStringParams)["file"]; haveFn {
+	if fname, haveFn := (*queryStringParams)["file"]; haveFn {
+		fn, possibleDecodeError := uRLDecodeAndTrim(fname)
+		if possibleDecodeError != nil {
+			log.Print("ERROR FindContent could not decode the file object: ", possibleDecodeError)
+			return nil, MakeResponseJson(400, GenericErrorBody("URL decode error"))
+		}
 		if isFilenameValid(fn) {
 			idMapping, err = ops.QueryIdMappings(ctx, IdMappingIndexFilebase, IdMappingKeyfieldFilebase, fn)
 			if err != nil {
