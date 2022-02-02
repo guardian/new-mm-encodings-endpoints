@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/go-xmlfmt/xmlfmt"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"log"
@@ -35,6 +36,15 @@ func isHeaderIrrelevant(key string) bool {
 	return false
 }
 
+/*
+normaliseHtml will "pretty-print" html with standard indentation and return it.
+This allows insignificant whitespace changes to be ignored
+*/
+func normaliseHtml(input *string) string {
+	xmlfmt.NL = "\n"
+	return xmlfmt.FormatXML(*input, "", "  ")
+}
+
 func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*TestOutput, bool, error) {
 	targetUrl, err := makeTargetUrl(endpointBase, evt)
 	if err != nil {
@@ -64,22 +74,26 @@ func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*T
 		log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
 		success = false
 	}
-	if string(content) != evt.ExpectedOutputMessage {
-		prob := fmt.Sprintf("expected body %s got %s", evt.ExpectedOutputMessage, string(content))
+
+	var actualContentString string
+	var expectedContentString string
+
+	if ct, haveCt := response.Header["Content-Type"]; haveCt && strings.HasPrefix(ct[0], "text/html") {
+		actualContentString = string(content)
+		actualContentString = normaliseHtml(&actualContentString)
+		expectedContentString = normaliseHtml(&evt.ExpectedOutputMessage)
+	} else {
+		actualContentString = string(content)
+		expectedContentString = evt.ExpectedOutputMessage
+	}
+
+	if actualContentString != expectedContentString {
+		prob := fmt.Sprintf("expected body %s got %s", expectedContentString, string(actualContentString))
 		errorList += prob + "\n"
 		log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
 		success = false
 	}
-	for k, v := range response.Header {
-		if headerVal, haveHeader := evt.ExpectedOutputHeaders[k]; haveHeader {
-			if headerVal != v[0] {
-				prob := fmt.Sprintf("header %s got value %s expected %s", k, v[0], headerVal)
-				errorList += prob + "\n"
-				log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
-				success = false
-			}
-		}
-	}
+
 	for k, v := range evt.ExpectedOutputHeaders {
 		if k == "Content-type" {
 			k = "Content-Type"
