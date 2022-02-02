@@ -101,7 +101,6 @@ Returns:
 - a pointer to APIGatewayProxyResponse on error. This can be passed back directly to the runtime.
 */
 func FindContent(ctx context.Context, queryStringParams *map[string]string, ops DynamoDbOps, config Config, cache MimeEquivalentsCache) (*ContentResult, *events.APIGatewayProxyResponse) {
-	//FIXME: no memcache implementation yet, we'll see how necessary it actually is
 	idMapping, errResponse := getIDMapping(ctx, queryStringParams, ops, config)
 	if errResponse != nil {
 		return nil, errResponse
