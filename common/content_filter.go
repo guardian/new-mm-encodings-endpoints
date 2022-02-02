@@ -1,6 +1,9 @@
 package common
 
-import "log"
+import (
+	"log"
+	"time"
+)
 
 /*
 isStringInList will return `true` if the given string is in the given list or `false` otherwise
@@ -75,6 +78,22 @@ func TestEncoding(encoding *Encoding, formats *[]string, need_mobile bool, minbi
 }
 
 /*
+mostRecentIndex will find the record with the most recent `lastUpdate` value and return the index of that one.
+If the array is empty returns 0.
+*/
+func mostRecentIndex(encodings []*Encoding) int {
+	var mostRecentTime time.Time //defaults to `0` value
+	var mostRecentIndex int
+	for i, e := range encodings {
+		if e.LastUpdate.After(mostRecentTime) {
+			mostRecentIndex = i
+			mostRecentTime = e.LastUpdate
+		}
+	}
+	return mostRecentIndex
+}
+
+/*
 ContentFilter Output a pointer to a ContentResult object after filtering an array of pointers to Encoding based on the other arguments
 Arguments:
 - encodings - An array of pointers to Encoding
@@ -104,7 +123,8 @@ func ContentFilter(encodings []*Encoding, formats *[]string, need_mobile bool, m
 	if len(encodingsToReturn) == 0 {
 		return nil
 	} else {
-		mostRecent := len(encodingsToReturn) - 1
+		//pooh. We need to re-sort here because the previous sorting can jumble up the date order
+		mostRecent := mostRecentIndex(encodingsToReturn)
 		return &ContentResult{*encodingsToReturn[mostRecent], "", ""}
 	}
 }
