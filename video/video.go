@@ -22,7 +22,7 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 	if errResponse != nil {
 		switch errResponse.StatusCode {
 		case 404:
-			return common.MakeResponseRaw(404, aws.String("No content found.\n"), "text/plain"), nil
+			return common.MakeResponseRaw(404, aws.String(""), "text/plain"), nil
 		default:
 			return errResponse, nil
 		}
