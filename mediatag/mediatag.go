@@ -19,7 +19,7 @@ var ops common.DynamoDbOps
 var config common.Config
 var mimeEquivelentsCache common.MimeEquivalentsCache
 
-const HtmlTagTemplate = `<video preload='auto' id='video_{{.OctopusId}}' poster='{{.PosterURL}}' {{.ExtraArguments|attr}}>
+const HtmlTagTemplate = `<video preload='auto' id='video_{{.OctopusId}}' poster='{{.PosterURL}}'{{.ExtraArguments|attr}}>
   <source src='{{.Url}}' type='{{.Format}}'>
 </video>`
 
