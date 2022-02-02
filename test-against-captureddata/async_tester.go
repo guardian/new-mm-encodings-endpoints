@@ -45,6 +45,47 @@ func normaliseHtml(input *string) string {
 	return xmlfmt.FormatXML(*input, "", "  ")
 }
 
+var urlNormaliser = regexp.MustCompile("^https?://")
+
+func normaliseUrl(input *string) string {
+	return urlNormaliser.ReplaceAllString(*input, "http://")
+}
+
+func checkHeaders(evt *EndpointEvent, response *http.Response, targetUrl string) (bool, string) {
+	errorList := ""
+	for k, v := range evt.ExpectedOutputHeaders {
+		if k == "Content-type" {
+			k = "Content-Type"
+		}
+
+		if headerVal, haveHeader := response.Header[k]; haveHeader {
+			if v == "text/plain" { //fix for an irritation that some events were logged with "text/plain" and others with "text/plain;charset=UTF-8"
+				v = "text/plain;charset=UTF-8"
+			}
+
+			actualHeader := normaliseUrl(&headerVal[0])
+			actualHeader = strings.TrimSpace(actualHeader)
+			expectedHeader := normaliseUrl(&v)
+			expectedHeader = strings.TrimSpace(expectedHeader)
+
+			if actualHeader != expectedHeader {
+				prob := fmt.Sprintf("header %s got value %s expected %s", k, actualHeader, expectedHeader)
+				errorList += prob + "\n"
+				log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
+				return false, errorList
+			}
+		} else {
+			if !isHeaderIrrelevant(k) {
+				prob := fmt.Sprintf("response was missing header %s", k)
+				errorList += prob + "\n"
+				log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
+				return false, errorList
+			}
+		}
+	}
+	return true, ""
+}
+
 func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*TestOutput, bool, error) {
 	targetUrl, err := makeTargetUrl(endpointBase, evt)
 	if err != nil {
@@ -83,40 +124,24 @@ func Test(httpClient *http.Client, endpointBase *string, evt *EndpointEvent) (*T
 		actualContentString = normaliseHtml(&actualContentString)
 		expectedContentString = normaliseHtml(&evt.ExpectedOutputMessage)
 	} else {
-		actualContentString = string(content)
-		expectedContentString = evt.ExpectedOutputMessage
+		actualContentString = strings.TrimSpace(string(content))
+		expectedContentString = strings.TrimSpace(evt.ExpectedOutputMessage)
 	}
 
-	if actualContentString != expectedContentString {
-		prob := fmt.Sprintf("expected body %s got %s", expectedContentString, string(actualContentString))
+	if actualContentString != expectedContentString &&
+		!(strings.HasPrefix(actualContentString, "No content found") && expectedContentString == "") &&
+		!(actualContentString == "" && strings.HasPrefix(expectedContentString, "No content found")) {
+
+		prob := fmt.Sprintf("expected body '%s' got '%s'", expectedContentString, actualContentString)
 		errorList += prob + "\n"
 		log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
 		success = false
 	}
 
-	for k, v := range evt.ExpectedOutputHeaders {
-		if k == "Content-type" {
-			k = "Content-Type"
-		}
-
-		if headerVal, haveHeader := response.Header[k]; haveHeader {
-			if v == "text/plain" { //fix for an irritation that some events were logged with "text/plain" and others with "text/plain;charset=UTF-8"
-				v = "text/plain;charset=UTF-8"
-			}
-			if headerVal[0] != v {
-				prob := fmt.Sprintf("header %s got value %s expected %s", k, headerVal, v)
-				errorList += prob + "\n"
-				log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
-				success = false
-			}
-		} else {
-			if !isHeaderIrrelevant(k) {
-				prob := fmt.Sprintf("response was missing header %s", k)
-				errorList += prob + "\n"
-				log.Printf("INFO Request %s from %s %s", targetUrl, evt.FormattedTimestamp(), prob)
-				success = false
-			}
-		}
+	headerCheckPassed, headerCheckProblems := checkHeaders(evt, response, targetUrl)
+	if !headerCheckPassed {
+		success = false
+		errorList += headerCheckProblems
 	}
 
 	reformattedHeaders := make(map[string]string, len(response.Header))
