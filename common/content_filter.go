@@ -104,6 +104,7 @@ func ContentFilter(encodings []*Encoding, formats *[]string, need_mobile bool, m
 	if len(encodingsToReturn) == 0 {
 		return nil
 	} else {
-		return &ContentResult{*encodingsToReturn[0], "", ""}
+		mostRecent := len(encodingsToReturn) - 1
+		return &ContentResult{*encodingsToReturn[mostRecent], "", ""}
 	}
 }
