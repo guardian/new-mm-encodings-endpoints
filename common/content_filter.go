@@ -33,6 +33,7 @@ Returns:
 - bool - true if the encoding should pass and false if it should not
 */
 func TestEncoding(encoding *Encoding, formats *[]string, need_mobile bool, minbitrate int32, maxbitrate int32, minheight int32, maxheight int32, minwidth int32, maxwidth int32) bool {
+	log.Printf("DEBUG ContentFilter.TestEncoding parameters are need_mobile=%v minbitrate=%d maxbitrate=%d minheight=%d maxheight=%d minwidth=%d maxwidth %d", need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
 	log.Printf("DEBUG ContentFilter.TestEncoding encoding's format is %s, potential formats list is %v", encoding.Format, *formats)
 	if len(*formats) > 0 && !isStringInList(&encoding.Format, formats) {
 		log.Printf("DEBUG ContentFilter.TestEncoding %s discounted on format", encoding.Url)
