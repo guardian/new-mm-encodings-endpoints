@@ -91,7 +91,12 @@ func getIDMapping(ctx context.Context, queryStringParams *map[string]string, ops
 		} else {
 			return nil, MakeResponseJson(400, GenericErrorBody("Invalid filespec"))
 		}
-	} else if octId, haveOctId := (*queryStringParams)["octopusid"]; haveOctId {
+	} else if octopusId, haveOctId := (*queryStringParams)["octopusid"]; haveOctId {
+		octId, possibleError := uRLDecodeAndTrim(octopusId)
+		if possibleError != nil {
+			log.Print("ERROR FindContent could not decode the octopusid object: ", possibleError)
+			return nil, MakeResponseJson(400, GenericErrorBody("URL decode error"))
+		}
 		if isOctIdValid(octId) {
 			octIdNum, _ := strconv.ParseInt(octId, 10, 64)
 			idMapping, err = ops.QueryIdMappings(ctx, IdMappingIndexOctid, IdMappingKeyfieldOctid, octIdNum)
