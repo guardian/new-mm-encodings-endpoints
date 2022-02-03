@@ -13,6 +13,7 @@ func main() {
 	pageSize := flag.Int("s", 50, "page size for event retrieval")
 	endpointBase := flag.String("target", "", "server name to test")
 	parallel := flag.Int("parallel", 10, "number of requests to run in parallel")
+	json := flag.Bool("json", false, "if set, output json instead of CSV")
 	outputFilename := flag.String("out", "endpoint-test-results.csv", "name of a CSV file to output")
 	filter := flag.String("filter", "", "if set, limit to only this endpoint")
 	flag.Parse()
@@ -26,7 +27,12 @@ func main() {
 	eventCh, errCh := AsyncRecordReader(ddbClient, tableName, *filter, int32(*pageSize))
 	resultsCh, waitGroup := AsyncTestEndpoint(eventCh, endpointBase, *parallel)
 
-	writeErrCh := AsyncWriter(resultsCh, *outputFilename)
+	var writeErrCh chan error
+	if *json {
+		writeErrCh = AsyncJsonWriter(resultsCh, *outputFilename)
+	} else {
+		writeErrCh = AsyncWriter(resultsCh, *outputFilename)
+	}
 	waitGroup.Add(1)
 
 	go func() {
