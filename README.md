@@ -5,12 +5,20 @@ This is a re-implementation of the encodings endpoints, based on Go and API Gate
 ## What's in the box?
 
 Main pieces:
-- **referenceapi/** - the `reference` endpoint. This looks up the content and gives the result as a single line of text
+- **common/** - the actual workhorse code that interprets requests and resolves content.
+- **referenceapi/** - the `reference` endpoint. This looks up the content and gives the result as a single line of text.
+- **mediatag/** - the `mediatag` endpoint. This looks up content and gives the results as an html5 `<video>` tag.
+- **video/** - the `video` endpoint. This looks up content and gives the results as a 302 Redirect to the content location
+- **genericoptions/** - an endpoint to handle the OPTIONS request for all the above. It returns a default set of permissive CORS headers.
 - **migration/** - a commandline tool (NOT a lambda function!) to migrate data from MySQL into DynamoDB
+- **test-against-captureddata** - a commandline tool (NOT a lambda function!) to test the responses of a deployment against a corpus
+of captured data stored in DyamoDB
 
 Other bits:
 - common/ - functionality that is shared between all the endpoints. This is the code that does the actual database scanning
 - infra/  - Cloudformation deployments to make it all work
+- ci-scripts/ - scripts used in the build process
+- doc/ - images for this file
 
 ## Where is the CODE/PROD cloudformation?
 
@@ -36,8 +44,7 @@ dependencies from previous steps are not there
 
 0. Make sure you have "Development Prerequisites", above
 1. Make sure you have a writable bucket to put the compiled lambda functions into
-2. Decide on the `App`, `Stack` and `Stage` identifiers you will use (`Stage` must be `PROD` or `CODE`. Our convention
-is that `PROD` indicates the active version and `CODE` the staging/testing version)
+2. Decide on the `App` and `Stack` identifiers you will use
 3. In a terminal, set these as environment variables:
 ```bash
 declare -x DEPLOYMENTBUCKET=your-deployment-bucket
@@ -236,4 +243,3 @@ not be able to ping this or even do a DNS lookup for a good few minutes.
 11. Add the relevant API and choose a stage to use then click "Save"
 12. Once everything is built and running, you should be able to access the selected stage of the given REST API from
 a sensible domain name!
-13. 
