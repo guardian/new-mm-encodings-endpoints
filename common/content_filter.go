@@ -124,8 +124,6 @@ func ContentFilter(encodings []*Encoding, formats *[]string, need_mobile bool, m
 	if len(encodingsToReturn) == 0 {
 		return nil
 	} else {
-		//pooh. We need to re-sort here because the previous sorting can jumble up the date order
-		mostRecent := mostRecentIndex(encodingsToReturn)
-		return &ContentResult{*encodingsToReturn[mostRecent], "", ""}
+		return &ContentResult{*encodingsToReturn[0], "", ""}
 	}
 }
