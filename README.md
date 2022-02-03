@@ -211,4 +211,29 @@ Once a request is merged and built it will be tagged with the alias `main`.
 
 ## Proper DNS names
 
-TODO
+Right about now, you are probably thinking "That's all very well, but how do I _access_ this thing?"
+
+Well, as with most AWS objects, the API deployment itself has an unintelligibly long name that you are not meant to
+actually _use_.  Unlike other AWS objects (like Elastic Load Balancers) there is a bit more setup than just a CNAME.  This
+setup is all done via the AWS browser console.
+
+1. Go to "API Gateway" in the main menu
+2. Select "Custom domain names" from the menu on the left
+3. You can see the existing domain names (for _all_ REST APIs) in the list and click one to edit it. Or you can click 'Create'
+to make a new one.
+4. In order to create a new one, you input the domain name you _want_ to use and select an HTTPS certificate.  Go to ACM
+if you need a new certificate to cover that domain name. **Note** If you are using Edge-optimized routing then the cert
+_must live in us-east-1_.
+5. Normally you'd want Edge-optimized because this gives better latancy globally by routing through Cloudfront.
+On the other hand, if you are testing or targeting only regional users you can select 'Regional' and use a cert from the region.
+6. Click 'Create domain name'. It won't work yet, don't worry about that.
+7. Now it's in the list, click it and view the "Configurations" tab.
+8. Take the value shown under "API Gateway domain name" and create a CNAME with your DNS provider to point _from_ the name
+you chose _to_ the AWS specific name shown there
+9. Note that if you're using an Edge-Optimized deployment, a Cloudformation distro is created under-the-hood so you may
+not be able to ping this or even do a DNS lookup for a good few minutes.
+10. Under "API Mappings" click "Configure API mappings"
+11. Add the relevant API and choose a stage to use then click "Save"
+12. Once everything is built and running, you should be able to access the selected stage of the given REST API from
+a sensible domain name!
+13. 
