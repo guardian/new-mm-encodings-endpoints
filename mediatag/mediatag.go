@@ -90,8 +90,12 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 		extraArguments = extraArguments + " controls"
 	}
 	if _, hasAutoPlay := (event.QueryStringParameters)["autoplay"]; hasAutoPlay {
-		extraArguments = extraArguments + " autoplay"
+		extraArguments = extraArguments + " autoplay muted"
 	}
+	if _, hasMuted := (event.QueryStringParameters)["nomuted"]; hasMuted {
+		extraArguments = strings.ReplaceAll(extraArguments, "muted", "")
+	}
+
 	if _, hasLoop := (event.QueryStringParameters)["loop"]; hasLoop {
 		extraArguments = extraArguments + " loop"
 	}

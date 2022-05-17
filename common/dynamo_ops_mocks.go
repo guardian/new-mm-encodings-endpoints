@@ -7,7 +7,7 @@ import (
 )
 
 type DynamoOpsMock struct {
-	LastContentId            int32
+	LastContentId            int64
 	FCSIdForContentIdResults *[]string
 	FCSIdForContentError     error
 
@@ -17,7 +17,7 @@ type DynamoOpsMock struct {
 
 	EncodingsForContentIdResults []*Encoding
 	EncodingsForContentIdError   error
-	ContentIdQueried             int32
+	ContentIdQueried             int64
 	ContentIdSince               *time.Time
 	IdMappingIndexQueried        string
 	IdMappingKeyFieldQueried     string
@@ -26,7 +26,7 @@ type DynamoOpsMock struct {
 	IdMappingError               error
 }
 
-func (ops *DynamoOpsMock) QueryFCSIdForContentId(ctx context.Context, contentId int32) (*[]string, error) {
+func (ops *DynamoOpsMock) QueryFCSIdForContentId(ctx context.Context, contentId int64) (*[]string, error) {
 	ops.LastContentId = contentId
 	if ops.FCSIdForContentError != nil {
 		return nil, ops.FCSIdForContentError
@@ -44,7 +44,7 @@ func (ops *DynamoOpsMock) QueryEncodingsForFCSId(ctx context.Context, fcsid stri
 	}
 }
 
-func (ops *DynamoOpsMock) QueryEncodingsForContentId(ctx context.Context, contentid int32, maybeSince *time.Time) ([]*Encoding, error) {
+func (ops *DynamoOpsMock) QueryEncodingsForContentId(ctx context.Context, contentid int64, maybeSince *time.Time) ([]*Encoding, error) {
 	ops.ContentIdQueried = contentid
 	copiedTime := *maybeSince
 	ops.ContentIdSince = &copiedTime

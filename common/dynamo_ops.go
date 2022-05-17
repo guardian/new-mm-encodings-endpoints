@@ -21,9 +21,9 @@ type DynamoDbOpsImpl struct {
 DynamoDbOps abstracts the actual DynamoDb operations so that we can mock them in testing
 */
 type DynamoDbOps interface {
-	QueryFCSIdForContentId(ctx context.Context, contentId int32) (*[]string, error)
+	QueryFCSIdForContentId(ctx context.Context, contentId int64) (*[]string, error)
 	QueryEncodingsForFCSId(ctx context.Context, fcsid string) ([]*Encoding, error)
-	QueryEncodingsForContentId(ctx context.Context, contentid int32, maybeSince *time.Time) ([]*Encoding, error)
+	QueryEncodingsForContentId(ctx context.Context, contentid int64, maybeSince *time.Time) ([]*Encoding, error)
 	QueryIdMappings(ctx context.Context, indexName string, keyFieldName string, searchTerm interface{}) (*IdMappingRecord, error)
 	GetAllMimeEquivalents(ctx context.Context) ([]*MimeEquivalent, error)
 }
@@ -54,7 +54,7 @@ select fcs_id from encodings left join mime_equivalents on (real_name=encodings.
 ```
 from line 273 of the original code
 */
-func (ops *DynamoDbOpsImpl) QueryFCSIdForContentId(ctx context.Context, contentId int32) (*[]string, error) {
+func (ops *DynamoDbOpsImpl) QueryFCSIdForContentId(ctx context.Context, contentId int64) (*[]string, error) {
 	expr, err := expression.NewBuilder().
 		WithKeyCondition(expression.Key("contentid").Equal(expression.Value(contentId))).
 		Build()
@@ -175,7 +175,7 @@ Returns:
 - a slice of pointers to matching Encoding records on success
 - an error on failure
 */
-func (ops *DynamoDbOpsImpl) QueryEncodingsForContentId(ctx context.Context, contentid int32, maybeSince *time.Time) ([]*Encoding, error) {
+func (ops *DynamoDbOpsImpl) QueryEncodingsForContentId(ctx context.Context, contentid int64, maybeSince *time.Time) ([]*Encoding, error) {
 	//equivalent SQL is select * from encodings left join mime_equivalents on (real_name=encodings.format) where contentid=$contentid order by vbitrate desc,lastupdate desc
 	keyTerms := expression.Key("contentid").Equal(expression.Value(contentid))
 	if maybeSince != nil {

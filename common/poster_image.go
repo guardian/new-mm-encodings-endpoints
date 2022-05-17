@@ -2,6 +2,7 @@ package common
 
 import (
 	"errors"
+	"log"
 	"regexp"
 )
 
@@ -12,11 +13,19 @@ Arguments:
 Returns:
 - URL of the poster image
 */
-func GeneratePosterImageURL(url string) (string, error) {
+func GeneratePosterImageURL(url string, pngPoster bool) (string, error) {
 	var re = regexp.MustCompile(`^(.*)\.[^\.]+$`)
 	matches := re.FindStringSubmatch(url)
 	if matches == nil {
 		return "", errors.New("the CDN URL was malformed (no file extension) ")
 	}
-	return matches[1] + "_poster.jpg", nil
+
+	log.Printf("GeneratePosterImageURL: pngPoster is %t", pngPoster)
+	xtn := ".jpg"
+	if pngPoster {
+		xtn = ".png"
+	}
+	log.Printf("poster path is %s", matches[1]+"_poster"+xtn)
+
+	return matches[1] + "_poster" + xtn, nil
 }
