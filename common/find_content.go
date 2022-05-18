@@ -37,7 +37,7 @@ Some entries may not have FCS IDs, and if uncaught this leads to all such entrie
 So, we iterate across them all and get the first non-empty one. If no ids are found then we must fall back to the
 old behaviour (step 3)
 */
-func getFCSId(ctx context.Context, ops DynamoDbOps, contentId int32) (*string, error) {
+func getFCSId(ctx context.Context, ops DynamoDbOps, contentId int64) (*string, error) {
 	results, err := ops.QueryFCSIdForContentId(ctx, contentId)
 
 	if err != nil {
@@ -230,11 +230,16 @@ func FindContent(ctx context.Context, queryStringParams *map[string]string, ops 
 		maxwidth = int32(parseIntOutput)
 	}
 
+	pngPoster := false
+	if _, ok := (*queryStringParams)["png"]; ok {
+		pngPoster = true
+	}
+
 	filteredContent := ContentFilter(contentToFilter, &formats, need_mobile, minbitrate, maxbitrate, minheight, maxheight, minwidth, maxwidth)
 	if filteredContent != nil {
 		_, allowInsecure := (*queryStringParams)["allow_insecure"]
 		filteredContent.Url = ForceHTTPS(filteredContent.Url, allowInsecure)
-		generatedPosterImageURL, possiblePosterImageError := GeneratePosterImageURL(filteredContent.Url)
+		generatedPosterImageURL, possiblePosterImageError := GeneratePosterImageURL(filteredContent.Url, pngPoster)
 		if possiblePosterImageError == nil {
 			filteredContent.PosterURL = generatedPosterImageURL
 		} else {

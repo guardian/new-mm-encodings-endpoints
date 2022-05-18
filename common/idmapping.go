@@ -9,7 +9,7 @@ import (
 )
 
 type IdMappingRecord struct {
-	contentId  int32
+	contentId  int64
 	filebase   string //base index
 	project    *string
 	lastupdate time.Time //range key for all indices
@@ -25,7 +25,7 @@ func NewIdMappingRecord(from *map[string]types.AttributeValue) (*IdMappingRecord
 			if err != nil {
 				return nil, err
 			}
-			result.contentId = int32(intValue)
+			result.contentId = intValue
 		}
 	}
 	if filebase, haveFileBase := (*from)["filebase"]; haveFileBase {
