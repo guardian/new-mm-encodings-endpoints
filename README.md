@@ -12,10 +12,11 @@ Follow these steps in your client-side implementation
 It’s vital that you verify that the user’s connection can actually play back the video without massive buffering.  “Just choosing” one of the available encodings risks upsetting one set of users who can’t play it and another set who say it’s too small and low-quality.
 
 There’s a simple method to do this:
-Download https://cdn.theguardian.tv/interactive/speedtest/testfilesmall.dat, and time it.  It’s a 1k file so should download very fast.
-If the download time is too small to get an accurate speed estimate, then download https://cdn.theguardian.tv/interactive/speedtest/testfile.dat, and time it.  It’s 100k so you should be able to get an estimate of that
-Make sure you remember that the endpoints expect bitrate in kbit/s, NOT kbyte/s!
-If you still can’t get an accurate estimate contact multimediatech@theguardian.com to discuss your requirements with us.
+
+- Download https://cdn.theguardian.tv/interactive/speedtest/testfilesmall.dat, and time it.  It’s a 1k file so should download very fast.
+- If the download time is too small to get an accurate speed estimate, then download https://cdn.theguardian.tv/interactive/speedtest/testfile.dat, and time it.  It’s 100k so you should be able to get an estimate of that
+- Make sure you remember that the endpoints expect bitrate in kbit/s, NOT kbyte/s!
+- If you still can’t get an accurate estimate contact multimediatech@theguardian.com to discuss your requirements with us.
 
 ### 2. Before you continue
 Secure delivery - the endpoints will always return https urls where possible.  If you don’t want this, add a query parameter allow_insecure=1 to the URL
