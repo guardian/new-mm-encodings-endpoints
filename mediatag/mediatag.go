@@ -100,6 +100,10 @@ func HandleEvent(ctx context.Context, event *events.APIGatewayProxyRequest) (*ev
 		extraArguments = extraArguments + " loop"
 	}
 
+	if _, isInline := (event.QueryStringParameters)["playsinline"]; isInline {
+		extraArguments = extraArguments + " playsinline"
+	}
+
 	hTMLToReturn, err := templateHTML(foundContent, extraArguments)
 
 	if err != nil {
